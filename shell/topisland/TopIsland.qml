@@ -2,7 +2,7 @@ import Quickshell
 import QtQuick
 import QtQuick.Layouts
 import "modules"
-import "../components"
+import "../../components"
 
 import "../ui" as UI
 

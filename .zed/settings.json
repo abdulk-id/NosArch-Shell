@@ -1,0 +1,15 @@
+{
+    "lsp": {
+        "qmljs": {
+            "binary": {
+                "path": "/usr/lib/qt6/bin/qmlls",
+                "arguments": [],
+            },
+        },
+    },
+    "languages": {
+        "QML": {
+            "language_servers": ["qmljs", "..."],
+        },
+    },
+}

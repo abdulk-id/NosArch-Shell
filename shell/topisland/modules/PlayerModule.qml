@@ -15,7 +15,7 @@ Item {
 
         text: {
             if (!playerModule.activePlayer) {
-                return "No player";
+                return "";
             }
 
             if (playerModule.activePlayer.playbackState === MprisPlaybackState.Playing) {
@@ -53,7 +53,7 @@ Item {
         const players = Mpris.players.values;
 
         // Remove dead player references
-        if (activePlayer && players.includes(activePlayer)) {
+        if (activePlayer && !players.includes(activePlayer)) {
             activePlayer = null;
         }
 

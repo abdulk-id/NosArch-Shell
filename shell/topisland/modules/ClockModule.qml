@@ -1,7 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
-import "../../components"
+import "../../../components"
 
 import "../../ui" as UI
 
@@ -312,7 +312,7 @@ Item {
         precision: SystemClock.Minutes
     }
     //readonly property string currentTime: Qt.formatDateTime(systemClock.date, "h:mm AP | ddd MMMM d")
-    readonly property string timeText: String(systemClock.date.getHours()).padStart(2, "0") + ":" + String(systemClock.date.getMinutes()).padStart(2, "0")
+    readonly property string timeText: String(systemClock.date.getHours()) + ":" + String(systemClock.date.getMinutes()).padStart(2, "0")
     readonly property string ampmText: (systemClock.date.getHours() >= 12) ? "PM" : "AM"
     readonly property string dateText: Qt.formatDate(systemClock.date, "ddd MMMM d")
 
