@@ -15,7 +15,6 @@ Scope {
         osdVisible: volumeOsd.osdVisible
     }
 
-    // Bind the pipewire node so its volume will be tracked
     PwObjectTracker {
         objects: [Pipewire.defaultAudioSink]
     }
@@ -28,7 +27,6 @@ Scope {
         }
     }
 
-    // Timer for hiding the osd
     Timer {
         id: hideTimer
         interval: 1000

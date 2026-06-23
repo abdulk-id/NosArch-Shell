@@ -1,4 +1,5 @@
 import Quickshell
+import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
 import "modules"
@@ -32,7 +33,8 @@ Scope {
                 // ===
 
                 focusable: false
-                aboveWindows: true
+                WlrLayershell.namespace: "nosarch-top-island"
+                WlrLayershell.layer: WlrLayer.Top
 
                 anchors { // Pin the bar to the top of the screen.
                     top: true

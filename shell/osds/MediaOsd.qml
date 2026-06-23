@@ -1,10 +1,10 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Services.Mpris
 import Quickshell.Wayland
 
 import "../ui" as UI
+import "../../services" as Services
 
 Scope {
     id: mediaOsd
@@ -24,7 +24,7 @@ Scope {
     }
 
     LazyLoader {
-        active: (mediaOsd.activePlayer && mediaOsd.osdVisible)
+        active: (Services.Media.isAvailable && mediaOsd.osdVisible)
 
         PanelWindow {
             anchors {
@@ -39,6 +39,7 @@ Scope {
             color: "transparent"
 
             WlrLayershell.namespace: "nosarch-media-osd"
+            WlrLayershell.layer: WlrLayer.Overlay
             focusable: false
             exclusionMode: ExclusionMode.Ignore
             mask: Region {}
@@ -60,10 +61,10 @@ Scope {
 
                         Layout.rightMargin: 10
 
-                        source: mediaOsd.activePlayer?.trackArtUrl ?? ""
+                        source: Services.Media.trackArtUrl
                         fillMode: Image.PreserveAspectCrop
 
-                        visible: (mediaOsd.activePlayer?.trackArtUrl != "")
+                        visible: (Services.Media.trackArtUrl !== "")
                     }
 
                     ColumnLayout {
@@ -74,15 +75,11 @@ Scope {
                             id: statusText
 
                             function getStatusText() {
-                                if (mediaOsd.activePlayer?.isPlaying) {
-                                    if (mediaOsd.getPlayingAppName() == "spotify") {
-                                        return "  Playing";
-                                    }
-
-                                    return "  Playing";
-                                } else if (mediaOsd.activePlayer?.playbackState == MprisPlaybackState.Paused) {
+                                if (Services.Media.isPlaying) {
+                                    return Services.Media.getPlayerIcon() + "  Playing";
+                                } else if (Services.Media.isPaused) {
                                     return "  Paused";
-                                } else if (mediaOsd.activePlayer?.playbackState == MprisPlaybackState.Stopped) {
+                                } else if (Services.Media.isStopped) {
                                     return "  Stopped";
                                 } else {
                                     return "";
@@ -103,7 +100,7 @@ Scope {
                         Text {
                             id: titleText
 
-                            text: mediaOsd.activePlayer?.trackTitle ?? "Unknown title"
+                            text: Services.Media.title.trim() !== "" ? Services.Media.title : "Unknown title"
                             color: UI.Colors.foreground
                             elide: Text.ElideRight
 
@@ -116,7 +113,7 @@ Scope {
                         Text {
                             id: artistText
 
-                            text: mediaOsd.activePlayer?.trackArtist ?? ""
+                            text: Services.Media.artist
                             color: UI.Colors.foregroundSecondary
                             elide: Text.ElideRight
 
@@ -133,41 +130,24 @@ Scope {
     // ===
 
     // Logic ===
-    property MprisPlayer activePlayer: Mpris.players.values.length > 0 ? Mpris.players.values[0] : null
-    property string status: activePlayer.isPlaying ? "Playing" : "Paused"
-
-    Connections {
-        id: allPlayersConnection
-
-        target: Mpris.players
-
-        function onValuesChanged() {
-            mediaOsd.activePlayer = Mpris.players.values.length > 0 ? Mpris.players.values[0] : null;
-        }
-    }
-
     Connections {
         id: activePlayerConnection
-        target: mediaOsd.activePlayer
 
-        function onTrackTitleChanged() {
-            if (mediaOsd.activePlayer?.playbackState !== MprisPlaybackState.Stopped) {
+        target: Services.Media
+        ignoreUnknownSignals: true
+
+        function onTrackChanged() {
+            if (!Services.Media.isStopped) {
                 mediaOsd.showOsd();
             }
         }
 
-        function onPlaybackStateChanged() {
-            switch (mediaOsd.activePlayer?.playbackState) {
-            case MprisPlaybackState.Playing:
-            case MprisPlaybackState.Paused:
-                mediaOsd.showOsd();
-                break;
-            }
+        function onPlaybackStarted() {
+            mediaOsd.showOsd();
         }
-    }
 
-    function getPlayingAppName() {
-        const playingApp = String(mediaOsd.activePlayer?.desktopEntry || mediaOsd.activePlayer?.identity || "default");
-        return playingApp.toLowerCase().replace(/\.desktop$/, "");
+        function onPlaybackPaused() {
+            mediaOsd.showOsd();
+        }
     }
 }
