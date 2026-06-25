@@ -1,37 +1,32 @@
 import QtQuick
-import Quickshell
 import Quickshell.Services.Pipewire
 
-import "../../components"
-
-Scope {
+Item {
     id: volumeOsd
 
-    property bool osdVisible: false
-    property int currentVolume: 0
     property bool isVolumeMuted: false
 
-    ProgressBarOsd {
-        value: volumeOsd.currentVolume
-        fontIcon: {
-            if (volumeOsd.isVolumeMuted) {
-                return "";
-            }
-
-            if (volumeOsd.currentVolume === 0) {
-                return "󰖁";
-            }
-            if (volumeOsd.currentVolume <= 25) {
-                return "󰕿";
-            }
-            if (volumeOsd.currentVolume <= 50) {
-                return "󰖀";
-            }
-
-            return "󰕾";
+    property int currentVolume: 0
+    readonly property string text: isVolumeMuted ? "Mute" : currentVolume + "%"
+    property bool osdVisible: false
+    readonly property string fontIcon: {
+        if (volumeOsd.isVolumeMuted) {
+            return "";
         }
-        osdVisible: volumeOsd.osdVisible
+
+        if (volumeOsd.currentVolume === 0) {
+            return "󰖁";
+        }
+        if (volumeOsd.currentVolume <= 25) {
+            return "󰕿";
+        }
+        if (volumeOsd.currentVolume <= 50) {
+            return "󰖀";
+        }
+
+        return "󰕾";
     }
+    readonly property string accessibleName: volumeOsd.isVolumeMuted ? "Volume: muted" : "Volume: " + volumeOsd.currentVolume + "%"
 
     PwObjectTracker {
         objects: [Pipewire.defaultAudioSink]

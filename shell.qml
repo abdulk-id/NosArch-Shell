@@ -10,7 +10,6 @@ ShellRoot {
     TopIsland {}
 
     // OSD
-    VolumeOsd {}
-    BrightnessOsd {}
+    ProgressOSDPanel {}
     MediaOsd {}
 }

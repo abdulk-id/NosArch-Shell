@@ -1,22 +1,16 @@
 import QtQuick
-import Quickshell
 import Quickshell.Io
 
-import "../../components"
-
-Scope {
+Item {
     id: brightnessOsd
 
-    property bool osdVisible: false
-
     property int maxBrightness: 1
-    property int currentBrightness: 0
 
-    ProgressBarOsd {
-        value: brightnessOsd.currentBrightness
-        fontIcon: "󰃠"
-        osdVisible: brightnessOsd.osdVisible
-    }
+    property int currentBrightness: 0
+    property string text: brightnessOsd.currentBrightness + "%"
+    property bool osdVisible: false
+    readonly property string fontIcon: "󰃠"
+    readonly property string accessibleName: "Brightness: " + brightnessOsd.currentBrightness + "%"
 
     FileView {
         id: brightnessFile
