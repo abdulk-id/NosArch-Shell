@@ -11,5 +11,6 @@ ShellRoot {
 
     // OSD
     VolumeOsd {}
+    BrightnessOsd {}
     MediaOsd {}
 }

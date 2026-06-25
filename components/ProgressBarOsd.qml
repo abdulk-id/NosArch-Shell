@@ -9,7 +9,7 @@ Scope {
     id: progressBarOsd
 
     required property int value
-    required property string icon
+    required property string fontIcon
 
     required property bool osdVisible
 
@@ -42,6 +42,19 @@ Scope {
                     anchors.margins: 10
                     spacing: 10
 
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+
+                        text: progressBarOsd.value + "%"
+
+                        color: UI.Colors.foreground
+
+                        font {
+                            family: UI.Fonts.fontFamily
+                            pixelSize: UI.Fonts.fontSizeSmall
+                        }
+                    }
+
                     Rectangle {
                         Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
                         Layout.fillHeight: true
@@ -67,21 +80,14 @@ Scope {
                     Text {
                         Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
 
-                        text: progressBarOsd.value + "%"
+                        text: progressBarOsd.fontIcon
 
                         color: UI.Colors.foreground
 
                         font {
                             family: UI.Fonts.fontFamily
-                            pixelSize: UI.Fonts.fontSizeSmall
+                            pixelSize: UI.Fonts.fontSizeIcons
                         }
-                    }
-
-                    IconImage {
-                        Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
-
-                        implicitSize: 25
-                        source: Quickshell.iconPath(progressBarOsd.icon)
                     }
                 }
             }
