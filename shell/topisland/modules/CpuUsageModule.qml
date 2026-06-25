@@ -68,9 +68,9 @@ Item {
         Component.onCompleted: running = true
     }
     Timer {
-        interval: 5000 // Every 5 seconds
-        running: true // Start immediately
-        repeat: true // Keep going forever
+        interval: 2000
+        running: true
+        repeat: true
         onTriggered: cpuProc.running = true
     }
     // ===

@@ -30,13 +30,12 @@ Scope {
                 // For separate bar on each screen
                 required property var modelData
                 screen: modelData
-                // ===
 
                 focusable: false
                 WlrLayershell.namespace: "nosarch-top-island"
                 WlrLayershell.layer: WlrLayer.Top
 
-                anchors { // Pin the bar to the top of the screen.
+                anchors {
                     top: true
                     left: true
                     right: true

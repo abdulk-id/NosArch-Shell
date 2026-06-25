@@ -44,27 +44,24 @@ Item {
     // ===
 
     // Behavior ===
-    property int memUsage: 0
+    property string memUsage: ""
 
     Process {
         id: memProc
-        command: ["sh", "-c", "free | grep Mem"]
-        stdout: SplitParser {
-            onRead: data => {
-                if (!data)
-                    return;
-                var parts = data.trim().split(/\s+/);
-                var total = parseInt(parts[1]) || 1;
-                var used = parseInt(parts[2]) || 0;
-                memUsageModule.memUsage = Math.round(100 * used / total);
+        command: ["sh", "-c", "free | grep Mem | awk '{printf \"%.0f\", ($3/$2) * 100.0}'"]
+        running: true
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                memUsageModule.memUsage = text.trim();
             }
         }
         Component.onCompleted: running = true
     }
     Timer {
-        interval: 5000 // Every 5 seconds
-        running: true // Start immediately
-        repeat: true // Keep going forever
+        interval: 2000
+        running: true
+        repeat: true
         onTriggered: memProc.running = true
     }
     // ===
