@@ -41,6 +41,8 @@ Item {
         anchors.fill: parent
         acceptedButtons: Qt.LeftButton
 
+        cursorShape: Qt.PointingHandCursor
+
         onClicked: {
             Services.Media.togglePlayPause();
         }

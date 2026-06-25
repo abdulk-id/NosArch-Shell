@@ -62,7 +62,6 @@ Item {
 
         anchors.fill: parent
 
-        hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
 
         onClicked: Quickshell.execDetached(["sh", "-c", "vicinae vicinae://launch/@botkooper/store.vicinae.power-profile/power-profile"])

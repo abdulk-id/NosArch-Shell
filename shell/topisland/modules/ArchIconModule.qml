@@ -25,7 +25,6 @@ Item {
 
         anchors.fill: parent
 
-        hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
 
         onClicked: Quickshell.execDetached(["sh", "-c", "nosarch-launcher"])

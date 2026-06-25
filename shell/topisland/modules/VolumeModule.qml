@@ -41,11 +41,13 @@ Item {
                 icon = "";
             } else {
                 if (vol === 0) {
-                    icon = "";
+                    icon = "󰖁";
+                } else if (vol <= 25) {
+                    return "󰕿";
                 } else if (vol <= 50) {
-                    icon = "";
+                    icon = "󰖀";
                 } else {
-                    icon = "";
+                    icon = "󰕾";
                 }
             }
 
@@ -65,7 +67,6 @@ Item {
 
         anchors.fill: parent
 
-        hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
 
         onClicked: Quickshell.execDetached(["nosarch-launch-tui", "wiremix"])

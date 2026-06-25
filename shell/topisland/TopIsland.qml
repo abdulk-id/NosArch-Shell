@@ -117,6 +117,7 @@ Scope {
                             separatorColor: UI.Colors.foregroundMuted
                         }
 
+                        NetworkModule {}
                         BluetoothModule {}
                         VolumeModule {}
                         BatteryModule {}

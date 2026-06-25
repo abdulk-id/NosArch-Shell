@@ -27,12 +27,13 @@ Item {
                 id: wsText
 
                 property int wsId: modelData
-                property var ws: Hyprland.workspaces.values.find(w => w.id === wsId) // Workspace has windows?
-                property bool isActive: Hyprland.focusedWorkspace?.id === wsId // Workspace is active?
+                property var ws: Hyprland.workspaces.values.find(w => w.id === wsId)
+                property bool isActive: Hyprland.focusedWorkspace?.id === wsId
 
                 text: isActive ? "󱓻" : wsId
 
                 color: ws ? UI.Colors.foreground : UI.Colors.foregroundMuted
+
                 font {
                     family: UI.Fonts.fontFamily
                     pixelSize: UI.Fonts.fontSize
@@ -40,14 +41,12 @@ Item {
                 }
 
                 MouseArea {
-                    id: mouseArea
-
                     anchors.fill: parent
 
                     cursorShape: Qt.PointingHandCursor
                     hoverEnabled: true
 
-                    onClicked: Hyprland.dispatch("workspace " + wsText.wsId)
+                    onClicked: wsText.ws?.activate()
                 }
             }
         }
