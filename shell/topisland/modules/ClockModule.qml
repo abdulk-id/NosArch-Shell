@@ -65,8 +65,7 @@ Item {
         id: systemClock
         precision: SystemClock.Minutes
     }
-    //readonly property string currentTime: Qt.formatDateTime(systemClock.date, "h:mm AP | ddd MMMM d")
-    readonly property string timeText: String(systemClock.date.getHours()) + ":" + String(systemClock.date.getMinutes()).padStart(2, "0")
+    readonly property string timeText: Qt.formatDateTime(systemClock.date, "h:mm AP").replace(/ AM| PM/g, "")
     readonly property string ampmText: (systemClock.date.getHours() >= 12) ? "PM" : "AM"
     readonly property string dateText: Qt.formatDate(systemClock.date, "ddd MMMM d")
 

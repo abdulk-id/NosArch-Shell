@@ -11,6 +11,9 @@ Scope {
     BrightnessOsd {
         id: brightnessOsd
     }
+    KeyboardBrightnessOsd {
+        id: keyboardBrightnessOsd
+    }
 
     Variants {
         model: Quickshell.screens
@@ -19,7 +22,7 @@ Scope {
             required property var modelData
             screen: modelData
 
-            visible: volumeOsd.osdVisible || brightnessOsd.osdVisible
+            visible: volumeOsd.osdVisible || brightnessOsd.osdVisible || keyboardBrightnessOsd.osdVisible
             focusable: false
             color: "transparent"
 
@@ -59,6 +62,15 @@ Scope {
                     osdVisible: brightnessOsd.osdVisible
 
                     accessibleName: brightnessOsd.accessibleName
+                }
+                ProgressOSDItem {
+                    value: keyboardBrightnessOsd.currentBrightness
+                    text: keyboardBrightnessOsd.text
+                    fontIcon: keyboardBrightnessOsd.fontIcon
+                    osdVisible: keyboardBrightnessOsd.osdVisible
+                    visible: keyboardBrightnessOsd.available
+
+                    accessibleName: keyboardBrightnessOsd.accessibleName
                 }
             }
         }

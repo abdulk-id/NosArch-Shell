@@ -29,17 +29,17 @@ Item {
                 IconImage {
                     anchors.centerIn: parent
                     source: {
-                        const icon = trayItem.modelData.icon
+                        const icon = trayItem.modelData.icon;
 
                         if (icon === "") {
-                            return ""
+                            return "";
                         }
 
                         if (icon.startsWith("/") || icon.startsWith("file:") || icon.startsWith("image:") || icon.startsWith("qrc:") || icon.startsWith("data:")) {
-                            return icon
+                            return icon;
                         }
 
-                        return "image://icon/" + encodeURIComponent(icon)
+                        return "image://icon/" + encodeURIComponent(icon);
                     }
                     asynchronous: true
                     mipmap: true
@@ -49,7 +49,7 @@ Item {
 
                 QsMenuAnchor {
                     id: menuAnchor
-                    menu: modelData.menu
+                    menu: trayItem.modelData.menu
 
                     anchor.window: trayItem.QsWindow.window
                     anchor.adjustment: PopupAdjustment.Flip
@@ -68,15 +68,15 @@ Item {
 
                     hoverEnabled: true
 
-                    onClicked: (mouse) => {
+                    onClicked: mouse => {
                         if (mouse.button === Qt.LeftButton) {
-                            modelData.activate()
+                            modelData.activate();
                         } else if (mouse.button === Qt.RightButton) {
                             if (modelData.hasMenu) {
-                                menuAnchor.open()
+                                menuAnchor.open();
                             }
                         } else if (mouse.button === Qt.MiddleButton) {
-                            modelData.secondaryActivate()
+                            modelData.secondaryActivate();
                         }
                     }
                 }
