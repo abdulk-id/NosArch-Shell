@@ -2,16 +2,17 @@
 
 import Quickshell
 
+import "shell"
 import "shell/topisland"
 import "shell/osds"
 
 ShellRoot {
     id: shell
 
-    // Top Island
+    Wallpaper {}
+
     TopIsland {}
 
-    // OSD
     ProgressOSDPanel {}
     MediaOsd {}
 }
