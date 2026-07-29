@@ -1,7 +1,7 @@
-import Quickshell
 import QtQuick
 
 import "../../ui" as UI
+import "../../../services" as Services
 
 Item {
     id: notificationModule
@@ -12,8 +12,8 @@ Item {
     Text {
         id: notificationText
 
-        text: ""
-        color: UI.Colors.foreground
+        text: Services.NotificationService.doNotDisturb ? "" : ""
+        color: Services.NotificationService.doNotDisturb ? UI.Colors.accent : UI.Colors.foreground
         font {
             family: UI.Fonts.fontFamily
             pixelSize: UI.Fonts.fontSize
@@ -26,14 +26,6 @@ Item {
 
         cursorShape: Qt.PointingHandCursor
 
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
-
-        onClicked: {
-            if (mouse.button == Qt.LeftButton) {
-                Quickshell.execDetached(["sh", "-c", "swaync-client -t -sw"]);
-            } else if (mouse.button == Qt.RightButton) {
-                Quickshell.execDetached(["sh", "-c", "swaync-client -d -sw"]);
-            }
-        }
+        onClicked: Services.NotificationService.doNotDisturb = !Services.NotificationService.doNotDisturb
     }
 }
