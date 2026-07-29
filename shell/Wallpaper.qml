@@ -16,11 +16,11 @@ Item {
                 right: true
             }
 
-            exclusionMode: PanelWindow.ExclusionMode.Ignore
+            exclusionMode: ExclusionMode.Ignore
 
             WlrLayershell.layer: WlrLayer.Background
-            WlrLayershell.namespace: "nosarch-wallpaper"
-            WlrLayershell.keyboardFocus: WlrLayershell.KeyboardFocus.None
+            WlrLayershell.namespace: "nosarch-shell-wallpaper"
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
             Image {
                 anchors.fill: parent

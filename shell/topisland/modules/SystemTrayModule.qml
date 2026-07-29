@@ -1,10 +1,7 @@
 import QtQuick
 import Quickshell
-import Quickshell.Wayland
 import Quickshell.Services.SystemTray
 import Quickshell.Widgets
-
-import "../../ui" as UI
 
 Item {
     id: systemTrayModule

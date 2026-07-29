@@ -27,24 +27,26 @@ Scope {
             PanelWindow {
                 id: panel
 
-                // For separate bar on each screen
                 required property var modelData
                 screen: modelData
 
                 focusable: false
-                WlrLayershell.namespace: "nosarch-top-island"
                 WlrLayershell.layer: WlrLayer.Top
+                WlrLayershell.namespace: "nosarch-shell-top-island"
 
                 anchors {
                     top: true
                     left: true
                     right: true
                 }
-                margins.top: topisland.barMagins
-                margins.left: topisland.barMagins
-                margins.right: topisland.barMagins
 
                 implicitHeight: topisland.barHeight
+
+                margins {
+                    top: topisland.barMagins
+                    left: topisland.barMagins
+                    right: topisland.barMagins
+                }
 
                 color: "transparent"
 
