@@ -1,8 +1,8 @@
-import Quickshell
-import Quickshell.Services.UPower
 import QtQuick
+import Quickshell
 
 import "../../ui" as UI
+import "../../../services" as Services
 
 Item {
     id: battery
@@ -13,40 +13,11 @@ Item {
     Text {
         id: batteryText
 
-        text: {
-            let battery = UPower.displayDevice;
-            if (!battery || !battery.ready)
-                return "󱉝"; // Loading/Not present
-
-            let percentage = Math.round(battery.percentage * 100);
-            let state = battery.state;
-
-            let defaultIcons = ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"];
-            let chargingIcons = ["󰢜", "󰂆", "󰂇", "󰂈", "󰢝", "󰂉", "󰢞", "󰂊", "󰂋", "󰂅"];
-
-            // Icon index (0-9) based on percentage
-            let iconIndex = Math.min(Math.floor(percentage / 10), 9);
-
-            if (state === UPowerDeviceState.FullyCharged) {
-                if (UPower.onBattery) {
-                    return `${defaultIcons[iconIndex]} ${percentage}%`;
-                } else {
-                    return `${chargingIcons[iconIndex]} ${percentage}%`;
-                }
-            } else if (state === UPowerDeviceState.Charging) {
-                return `${chargingIcons[iconIndex]} ${percentage}%`;
-            } else if (state === UPowerDeviceState.PendingCharge) {
-                // Check if plugged but not necessarily charging
-                return ` ${percentage}%`;
-            }
-            // Default discharging state
-            return `${defaultIcons[iconIndex]} ${percentage}%`;
-        }
+        text: Services.SystemInfo.battery.textIcon + " " + Services.SystemInfo.battery.percentage + "%"
         color: {
-            let percentage = Math.round(UPower.displayDevice.percentage * 100);
-            if (percentage <= 10) {
+            if (Services.SystemInfo.battery.percentage <= 10) {
                 return "#ff5555"; // critical
-            } else if (percentage <= 20) {
+            } else if (Services.SystemInfo.battery.percentage <= 20) {
                 return "#ffb86c"; // warning
             }
             return UI.Colors.foreground; // default/good

@@ -1,20 +1,19 @@
-import Quickshell
-import Quickshell.Io
 import QtQuick
+import Quickshell
 
 import "../../ui" as UI
+import "../../../services" as Services
 
 Item {
     id: memUsageModule
 
-    // UI ===
     implicitHeight: memUsageText.implicitHeight
     implicitWidth: memUsageText.implicitWidth
 
     Text {
         id: memUsageText
 
-        text: "󰾆 " + memUsageModule.memUsage + "%"
+        text: "  " + (Services.SystemInfo.memory.totalGib - Services.SystemInfo.memory.availableGib).toFixed(1) + "/" + Services.SystemInfo.memory.totalGib.toFixed(1) + " GiB"
         color: UI.Colors.foreground
         font {
             family: UI.Fonts.fontFamily
@@ -38,31 +37,6 @@ Item {
 
         onEntered: memUsageText.opacity = 1.0
         onExited: memUsageText.opacity = 0.7
-
         onClicked: Quickshell.execDetached(["nosarch-launch-tui", "btop"])
     }
-    // ===
-
-    // Behavior ===
-    property string memUsage: ""
-
-    Process {
-        id: memProc
-        command: ["sh", "-c", "free | grep Mem | awk '{printf \"%.0f\", ($3/$2) * 100.0}'"]
-        running: true
-
-        stdout: StdioCollector {
-            onStreamFinished: {
-                memUsageModule.memUsage = text.trim();
-            }
-        }
-        Component.onCompleted: running = true
-    }
-    Timer {
-        interval: 2000
-        running: true
-        repeat: true
-        onTriggered: memProc.running = true
-    }
-    // ===
 }
