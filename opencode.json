@@ -2,15 +2,18 @@
     "$schema": "https://opencode.ai/config.json",
     "permission": {
         "bash": {
-            "*": "ask",
-            "sudo *": "deny"
+            "sudo *": "deny",
+            "*": "ask"
         },
-        "edit": "ask",
+        "edit": {
+            "AGENTS.md": "allow",
+            "*": "ask"
+        },
         "read": {
-            "*": "allow",
             "*.env": "deny",
             "*.env.*": "deny",
-            "*.env.example": "allow"
+            "*.env.example": "allow",
+            "*": "allow"
         },
         "grep": "allow",
         "glob": "allow",
