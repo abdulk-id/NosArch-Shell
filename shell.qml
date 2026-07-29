@@ -5,6 +5,7 @@ import Quickshell
 import "shell"
 import "shell/topisland"
 import "shell/osds"
+import "shell/notifications"
 
 ShellRoot {
     id: shell
@@ -15,4 +16,5 @@ ShellRoot {
 
     ProgressOSDPanel {}
     MediaOsd {}
+    NotificationPopup {}
 }
