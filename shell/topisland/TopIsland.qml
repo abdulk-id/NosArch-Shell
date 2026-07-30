@@ -20,12 +20,28 @@ Scope {
     // ===
 
     // UI ===
+    QtObject {
+        id: popupStateManager
+
+        property string activePopup: ""
+
+        function set(id) {
+            activePopup = id;
+        }
+        function close() {
+            activePopup = "";
+        }
+        function isActive(id) {
+            return activePopup === id;
+        }
+    }
+
     Variants {
         model: Quickshell.screens
 
         delegate: Component {
             PanelWindow {
-                id: panel
+                id: topIslandPanel
 
                 required property var modelData
                 screen: modelData
@@ -71,7 +87,7 @@ Scope {
                         Workspaces {}
 
                         Separator {
-                            separatorHeight: panel.implicitHeight - 10 //TODO: Proper height calculation, not hardcoded
+                            separatorHeight: topIslandPanel.implicitHeight - 10 //TODO: Proper height calculation, not hardcoded
                             separatorColor: UI.Colors.foregroundMuted
                         }
 
@@ -114,11 +130,14 @@ Scope {
                         SystemTrayModule {}
 
                         Separator {
-                            separatorHeight: panel.implicitHeight - 10 //TODO: Proper height calculation, not hardcoded
+                            separatorHeight: topIslandPanel.implicitHeight - 10 //TODO: Proper height calculation, not hardcoded
                             separatorColor: UI.Colors.foregroundMuted
                         }
 
-                        NetworkModule {}
+                        NetworkModule {
+                            topIsland: topIslandPanel
+                            popupState: popupStateManager
+                        }
                         BluetoothModule {}
                         VolumeModule {}
                         BatteryModule {}
