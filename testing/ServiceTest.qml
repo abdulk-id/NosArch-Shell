@@ -102,6 +102,33 @@ PanelWindow {
                 font.family: "JetbrainsMono Nerd Font"
                 text: parent.row("Icon", Services.SystemInfo.battery.textIcon)
             }
+
+            Rectangle {
+                width: parent.width
+                height: 1
+                color: "#505050"
+            }
+
+            Text {
+                color: "white"
+                text: parent.row("Network Device Wired", Services.NetworkService.isActiveDeviceWired)
+            }
+
+            Text {
+                color: "white"
+                text: parent.row("Network Device Wireless", Services.NetworkService.isActiveDeviceWireless)
+            }
+
+            Text {
+                color: "white"
+                text: parent.row("Active Network name", Services.NetworkService.activeNetwork.name)
+            }
+
+            Text {
+                color: "white"
+                font.family: "JetbrainsMono Nerd Font"
+                text: parent.row("Icon", Services.NetworkService.textIcon)
+            }
         }
     }
 }

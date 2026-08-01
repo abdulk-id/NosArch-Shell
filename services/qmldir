@@ -1,4 +1,6 @@
 singleton Media Media.qml
+singleton NetworkService NetworkService.qml
 singleton NotificationService NotificationService.qml
 singleton SystemInfo SystemInfo.qml
+
 NotificationData NotificationData.qml
