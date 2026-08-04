@@ -3,9 +3,9 @@
 import Quickshell
 
 import "shell"
-import "shell/topisland"
-import "shell/osds"
 import "shell/notifications"
+import "shell/osds"
+import "shell/topisland"
 
 ShellRoot {
     id: shell
