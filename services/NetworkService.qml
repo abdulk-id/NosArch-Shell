@@ -52,19 +52,14 @@ Singleton {
 
     // Text icon
     readonly property var wifiIcons: ["󰤯", "󰤟", "󰤢", "󰤥", "󰤨"]
-    readonly property string ethernetIcon: "󰀂"
-    readonly property string portalIcon: "󰖟"
-    readonly property string limitedIcon: "󰤬"
-    readonly property string unknownIcon: "󰤫"
-    readonly property string disconnectedIcon: "󰤮"
 
     readonly property string textIcon: {
         let device = networkService.activeDevice;
         if (device === null) {
             if (Networking.connectivity === NetworkConnectivity.None) {
-                return networkService.disconnectedIcon;
+                return "󰤮";
             } else {
-                return networkService.unknownIcon;
+                return "󰤫";
             }
         }
 
@@ -77,16 +72,16 @@ Singleton {
                     return networkService.wifiIcons[iconIndex];
                 }
             } else if (device.type === DeviceType.Wired) {
-                return networkService.ethernetIcon;
+                return "󰀂";
             }
         } else if (connectivity === NetworkConnectivity.Limited) {
-            return networkService.limitedIcon;
+            return "󰤬";
         } else if (connectivity === NetworkConnectivity.Portal) {
-            return networkService.portalIcon;
+            return "󰖟";
         } else if (connectivity === NetworkConnectivity.None) {
-            return networkService.disconnectedIcon;
+            return "󰤮";
         }
-        return networkService.unknownIcon;
+        return "󰤫";
     }
 
     // IP Address

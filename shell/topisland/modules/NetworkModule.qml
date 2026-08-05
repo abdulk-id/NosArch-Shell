@@ -97,7 +97,7 @@ Item {
                     margins: networkModule.popupMargin
                 }
 
-                spacing: 1
+                spacing: 0
 
                 // WiFi Toggle Button, Status and Security Type Text
                 RowLayout {
@@ -555,7 +555,7 @@ Item {
                                 Text {
                                     id: savedNetworkSignalIcon
 
-                                    text: savedNetworksView.model.signalIcon
+                                    text: model.signalIcon
                                     color: UI.Colors.foreground
                                     font {
                                         family: UI.Fonts.fontFamily
@@ -568,7 +568,7 @@ Item {
 
                                     Layout.fillWidth: true
 
-                                    text: savedNetworksView.model.name
+                                    text: model.name
                                     color: UI.Colors.foreground
                                     font {
                                         family: UI.Fonts.fontFamily
@@ -580,7 +580,7 @@ Item {
                                 Text {
                                     id: savedNetworkSecurityText
 
-                                    text: savedNetworksView.model.securityText
+                                    text: model.securityText
                                     color: UI.Colors.foregroundSecondary
                                     font {
                                         family: UI.Fonts.fontFamily
@@ -685,7 +685,7 @@ Item {
                                 Text {
                                     id: unknownNetworkSignalIcon
 
-                                    text: unknownNetworksView.model.signalIcon
+                                    text: model.signalIcon
 
                                     color: UI.Colors.foreground
                                     font {
@@ -699,7 +699,7 @@ Item {
 
                                     Layout.fillWidth: true
 
-                                    text: unknownNetworksView.model.name
+                                    text: model.name
 
                                     color: UI.Colors.foreground
                                     font {
@@ -712,7 +712,7 @@ Item {
                                 Text {
                                     id: unknownNetworkLockIcon
 
-                                    text: unknownNetworksView.model.isOpen ? "" : ""
+                                    text: model.isOpen ? "" : ""
 
                                     color: UI.Colors.foregroundSecondary
                                     font {

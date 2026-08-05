@@ -5,10 +5,7 @@
             "sudo *": "deny",
             "*": "ask"
         },
-        "edit": {
-            "AGENTS.md": "allow",
-            "*": "ask"
-        },
+        "edit": "allow",
         "read": {
             "*.env": "deny",
             "*.env.*": "deny",
