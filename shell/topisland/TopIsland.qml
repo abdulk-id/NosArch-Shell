@@ -139,7 +139,10 @@ Scope {
                             popupState: popupStateManager
                         }
                         BluetoothModule {}
-                        VolumeModule {}
+                        VolumeModule {
+                            topIsland: topIslandPanel
+                            popupState: popupStateManager
+                        }
                         BatteryModule {}
                         NotificationModule {}
                     }
