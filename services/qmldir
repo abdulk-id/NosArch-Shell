@@ -1,4 +1,5 @@
 singleton AudioService AudioService.qml
+singleton BluetoothService BluetoothService.qml
 singleton Media Media.qml
 singleton NetworkService NetworkService.qml
 singleton NotificationService NotificationService.qml

@@ -127,7 +127,19 @@ PanelWindow {
             Text {
                 color: "white"
                 font.family: "JetbrainsMono Nerd Font"
-                text: parent.row("Icon", Services.NetworkService.textIcon)
+                text: parent.row("Network Icon", Services.NetworkService.textIcon)
+            }
+
+            Rectangle {
+                width: parent.width
+                height: 1
+                color: "#505050"
+            }
+
+            Text {
+                color: "white"
+                font.family: "JetbrainsMono Nerd Font"
+                text: parent.row("Bluetooth Icon", Services.BluetoothService.textIcon)
             }
         }
     }

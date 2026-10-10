@@ -24,15 +24,21 @@ Scope {
         id: popupStateManager
 
         property string activePopup: ""
+        property string activeScreen: ""
 
-        function set(id) {
+        function set(id, screen) {
             activePopup = id;
+            activeScreen = screen === undefined ? "" : screen;
         }
         function close() {
             activePopup = "";
+            activeScreen = "";
         }
-        function isActive(id) {
-            return activePopup === id;
+        function isActive(id, screen) {
+            if (screen === undefined) {
+                return activePopup === id;
+            }
+            return activePopup === id && activeScreen === screen;
         }
     }
 
