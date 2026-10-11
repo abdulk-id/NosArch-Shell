@@ -36,7 +36,11 @@
 # swaync, which owns the real one. smoke.qml creates NO layer-shell surfaces
 # (every instantiated object is parented to plain in-memory Items), so nothing
 # is drawn and waybar / hyprpaper / swayosd are never involved. Nothing is
-# written to ~/.config, ~/.local/share or any installed location.
+# written to ~/.config or any installed location. HOME is redirected to a
+# scratch directory because the file-backed palette (ticket 04) writes
+# ~/.local/share/nosarch/current-theme/palette.json on first run — the path
+# is resolved from HOME, so the write lands in the scratch home and the live
+# theme directory is never touched.
 #
 # Exit status: 0 only if all three checks pass.
 #
@@ -132,8 +136,13 @@ echo "[B] runtime instantiation (isolated bus, up to ${RUN_SECS}s) ..."
 # Run from the repo root. smoke.qml's component paths and the modules' own
 # imports are directory-relative, and Quickshell only loads files at or below
 # the config root (the -p file's directory) — hence smoke.qml at the root.
+#
+# HOME is pointed at a scratch dir: the palette resolves its file from HOME
+# and writes it on first run, so this keeps the live theme directory out of
+# the run (see the SAFETY note above).
+mkdir -p "$TMP/home"
 cd "$REPO" || exit 1
-timeout "$RUN_SECS" dbus-run-session -- \
+HOME="$TMP/home" timeout "$RUN_SECS" dbus-run-session -- \
     quickshell --no-color --log-times -p "$SMOKE_QML" >"$LOG" 2>&1 &
 
 # Wait for the summary line the smoke shell prints before it quits.

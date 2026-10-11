@@ -50,6 +50,10 @@ import Quickshell
 // is what creates them, so a service that cannot even be constructed fails.
 import "services" as Services
 
+// The ui singletons (Colors, Fonts — see shell/ui/qmldir). Referencing them
+// here constructs them, so a palette that cannot load fails in the smoke run.
+import "shell/ui" as UI
+
 Item {
     id: smokeRoot
 
@@ -227,7 +231,7 @@ Item {
         {
             name: "Separator.qml",
             path: "components/Separator.qml",
-            props: { separatorHeight: 20, separatorColor: "#ffffff" }
+            props: { separatorHeight: 20, separatorColor: UI.Colors.foreground }
         },
         {
             name: "ProgressOSDItem.qml",
@@ -382,6 +386,15 @@ Item {
     }
 
     function finalizeStage(): void {
+        // Palette readout (ticket 04): printed late, after the file-backed
+        // palette has loaded and merged, so the verdict reflects the real
+        // theme state rather than the pre-load defaults.
+        const pal = UI.Colors;
+        console.info("SMOKE NOTE palette source=" + pal.source +
+            " keys-from-file=" + pal.keysFromFile +
+            (pal.note !== "" ? " note=" + pal.note : "") +
+            " background=" + pal.background + " accent=" + pal.accent);
+
         // Services: create each singleton (via the qmldir registration) and
         // read the leaves the shell consumes.
         for (const s of smokeRoot.servicePlan) {

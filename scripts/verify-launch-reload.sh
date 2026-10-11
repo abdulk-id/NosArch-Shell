@@ -19,7 +19,11 @@
 # throwaway private bus and cannot disturb the swaync / swayosd / waybar that own
 # the real one. Layer-shell surfaces are wayland-only, so they DO flash on screen
 # briefly; the run is short and the process is always killed on exit. Nothing is
-# written to ~/.config, ~/.local/share, or any installed location.
+# written to ~/.config or any installed location. HOME is redirected to a
+# scratch directory because the file-backed palette (ticket 04) writes
+# ~/.local/share/nosarch/current-theme/palette.json on first run — the path
+# is resolved from HOME, so the write lands in the scratch home and the live
+# theme directory is never touched.
 #
 # Exit status: 0 only if both checks pass.
 #
@@ -99,7 +103,11 @@ cp -r "$REPO/shell"     "$TMP/shell"
 cp -r "$REPO/services"  "$TMP/services"
 cp -r "$REPO/components" "$TMP/components"
 
-timeout "$RUN_SECS" dbus-run-session -- \
+# HOME is pointed at a scratch dir: the palette resolves its file from HOME
+# and writes it on first run, so this keeps the live theme directory out of
+# the run (see the SAFETY note above).
+mkdir -p "$TMP/home"
+HOME="$TMP/home" timeout "$RUN_SECS" dbus-run-session -- \
     quickshell --no-color --log-times -p "$TMP/shell.qml" >"$LOG" 2>&1 &
 runtime_rc=0
 
