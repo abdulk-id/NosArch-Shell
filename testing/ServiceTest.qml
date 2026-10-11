@@ -1,10 +1,15 @@
 import QtQuick
 import Quickshell
+import Quickshell.Wayland
 
 import "../services" as Services
 
 PanelWindow {
     id: root
+
+    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    WlrLayershell.namespace: "nosarch-shell-service-test"
 
     anchors {
         right: true

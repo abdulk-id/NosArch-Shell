@@ -17,6 +17,7 @@ Quickshell desktop shell configuration (`nosarch-shell`) written in QML.
 - Singletons use `pragma Singleton` and are registered in `qmldir` files (services and shell/ui)
 - All UI uses `UI.Colors.*` and `UI.Fonts.*` from colors and fonts singletons in `shell/ui` — never hardcode colors or font properties
 - Import singletons as `import "path" as UI` then reference `UI.Colors`, `UI.Fonts`
+- **Layer-shell surfaces set BOTH a layer and a namespace.** Every `PanelWindow` overlay surface assigns `WlrLayershell.layer` (its place in the layer stack) and a distinct `WlrLayershell.namespace`. This is load-bearing under the panel architecture: panel surfaces need distinct namespaces so per-monitor surfaces and the cross-monitor dismissal twins can be told apart. Framework `PopupWindow`s and plain `Item`s are not layer-shell surfaces and are exempt.
 
 ## Running
 
