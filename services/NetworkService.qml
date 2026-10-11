@@ -48,6 +48,7 @@ Singleton {
                 return network;
             }
         }
+        return null;
     }
 
     // Text icon
