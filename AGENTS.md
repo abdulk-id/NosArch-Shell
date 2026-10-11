@@ -7,10 +7,11 @@ Quickshell desktop shell configuration (`nosarch-shell`) written in QML.
 ## File Layout
 
 - `shell.qml`: Quickshell entrypoint. Imports and composes all shell components.
+- `smoke.qml`: Smoke-test entrypoint. Instantiates every widget, service and shared component (once per screen) and reports each by name. It draws nothing — run it through `scripts/verify-smoke.sh`, never as a live shell.
 - `shell/`: Contains all the shell components to be used in the shell entrypoint.
 - `services/`: Contains singletons for `SystemInfo`, `NotificationService`, `Media` etc.; register via `services/qmldir`
 - `components/`: Contains shared components (`Separator`, `ProgressOSDItem`)
-- `testing/`: Standalone test components (not automated tests)
+- `testing/`: Development readout panels, not verification. `ServiceReadout.qml` renders live service values by eye; it asserts nothing and no script runs it.
 
 ## Conventions
 
@@ -22,7 +23,31 @@ Quickshell desktop shell configuration (`nosarch-shell`) written in QML.
 ## Running
 
 No build step — Quickshell loads QML directly.
-No verification step — Quickshell process throws syntax errors at runtime.
+
+Two verification scripts live in `scripts/`. Both work by launching the shell
+and reading its log, because the framework's only failure signal is the log:
+
+- `scripts/verify-smoke.sh` launches `smoke.qml` under a private D-Bus session,
+  instantiates every widget, service and shared component (per screen) and
+  fails if any item fails to load or if any WARN/ERROR line names a file in
+  this repo. It also checks that the smoke plan still covers everything in
+  the tree, so a widget added without being listed there fails loudly.
+- `scripts/verify-launch-reload.sh` launches the real `shell.qml` by path,
+  checks the layer/namespace convention statically, forces a reload and reads
+  the fresh-vs-reloaded verdict out of the log.
+
+What remains true from the old note: **the process itself still exits 0 even
+when every binding throws**, so a QML syntax or type error only surfaces at
+run time — that is precisely why both checks launch the shell instead of
+linting it, and why the smoke script parses the log rather than trusting the
+exit code.
+
+Both scripts run the shell inside `dbus-run-session`, so the shell's
+NotificationServer owns `org.freedesktop.Notifications` on a throwaway bus and
+swaync keeps the real one. The smoke shell draws no surfaces at all; the
+launch/reload shell briefly draws the real ones and is always killed
+afterwards. Nothing is written to `~/.config`, `~/.local/share` or any
+installed location.
 
 ## Documentation
 

@@ -1,3 +1,23 @@
+// ServiceReadout.qml — a DEVELOPMENT READOUT PANEL, not a test.
+//
+// It renders live service values in a side panel for poking at a service by
+// eye. It asserts nothing, it exits 0 no matter what fails, and it is run by
+// no verification script — do not read its exit code as a result. (It was
+// named ServiceTest.qml, which invited exactly that reading: it emitted
+// ~13 WARN TypeErrors on every launch and still exited 0.)
+//
+// Verification lives in smoke.qml (run it through
+// scripts/verify-smoke.sh), which instantiates every widget, service and
+// component and fails on QML errors. The readout value of this panel is
+// duplicated there as the per-service PASS lines, which print live values
+// without needing a panel on screen.
+//
+//   quickshell -p testing/ServiceReadout.qml
+//
+// Expect transient "property of undefined" values here while the singletons
+// populate — that is this harness binding sub-objects early, not a defect to
+// chase (the pre-rewrite baseline record documents this in full).
+
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
