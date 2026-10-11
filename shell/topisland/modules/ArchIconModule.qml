@@ -13,7 +13,7 @@ Item {
         id: archIconText
 
         text: ""
-        color: "#1793d1"
+        color: UI.Colors.accent
         font {
             family: UI.Fonts.fontFamily
             pixelSize: UI.Fonts.fontSizeIcons

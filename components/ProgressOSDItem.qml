@@ -53,13 +53,23 @@ Rectangle {
             }
         }
 
-        Rectangle {
+        Item {
             Layout.alignment: Qt.AlignHCenter
             Layout.fillHeight: true
 
             Layout.preferredWidth: 5
-            radius: 4
-            color: "#50ffffff"
+
+            // The track is the foreground colour at low opacity — the same
+            // neutral translucent bar as the previous hardcoded "#50ffffff"
+            // in the default theme. It is a SIBLING of the fill (not its
+            // parent) so the fill keeps full opacity.
+            Rectangle {
+                anchors.fill: parent
+
+                radius: 4
+                color: UI.Colors.foreground
+                opacity: 0.31
+            }
 
             Rectangle {
                 anchors {
@@ -70,7 +80,7 @@ Rectangle {
 
                 height: Math.min(parent.height * (progressOsdItem.value / 100), parent.height)
 
-                radius: parent.radius
+                radius: 4
                 color: UI.Colors.accent
 
                 Behavior on height {

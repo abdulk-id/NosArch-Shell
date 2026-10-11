@@ -16,7 +16,7 @@ Item {
         text: Services.SystemInfo.battery.textIcon + " " + Services.SystemInfo.battery.percentage + "%"
         color: {
             if (Services.SystemInfo.battery.percentage <= 10) {
-                return "#ff5555"; // critical
+                return UI.Colors.alertRed; // critical
             } else if (Services.SystemInfo.battery.percentage <= 20) {
                 return "#ffb86c"; // warning
             }
