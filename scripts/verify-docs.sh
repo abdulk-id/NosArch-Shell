@@ -57,22 +57,29 @@ PASS=0
 FAIL=0
 FAILED_CHECKS=()
 
-# check <id> <python-heredoc-body-as-filename-free-code> — the python blocks
-# below print one line beginning "PASS|" or "FAIL|" plus optional "  (tree)"
-# context lines, and this turns that into the run's tally. Keeping it in one
-# place is what stops the six checks drifting in style.
+# check <id> <python-heredoc> — the python blocks print one or more lines
+# beginning "PASS|" or "FAIL|" plus optional "  (tree)" context lines. This
+# turns those into the run's tally: any FAIL anywhere makes the whole check
+# fail, and every verdict's detail is reported. Keeping it in one place is
+# what stops the six checks drifting in style.
 check() {
-    local id="$1"
-    local out verdict
+    local id="$1" out verdict details
     out="$(python3 - "$@" 2>&1)"
-    verdict="$(printf '%s\n' "$out" | grep -E '^(PASS|FAIL)\|' | head -n1)"
     printf '%s\n' "$out" | grep -E '^  \(' || true
+    details="$(printf '%s\n' "$out" | sed -n -E 's/^(PASS|FAIL)\|//p')"
+    if printf '%s\n' "$out" | grep -q '^FAIL|'; then
+        verdict=FAIL
+    elif [[ -n "$(printf '%s\n' "$out" | sed -n -E 's/^PASS\|//p')" ]]; then
+        verdict=PASS
+    else
+        verdict=""
+    fi
     if [[ -z "$verdict" ]]; then
         report FAIL "$id" "the checker produced no verdict (see above)"
         return
     fi
-    verdict="${verdict%%|*}"
-    report "$verdict" "$id" "${out#*"$verdict"|}"
+    report "$verdict" "$id" "$(printf '%s\n' "$details" \
+        | awk 'BEGIN{ORS=""} {print (n++ ? "; " : "") $0}')"
 }
 
 report() {  # report <PASS|FAIL> <check-id> <detail>
@@ -143,30 +150,39 @@ for term in REQUIRED:
     if key not in entries:
         bad.append(f"no glossary entry for '{term}'")
         continue
+    # Split the entry into its definition and its `_Avoid_` list: an `_Avoid_`
+    # entry wraps onto continuation lines, so everything from the marker to the
+    # next heading belongs to the avoid list, not the definition.
     body = entries[key]
-    prose = [l.strip() for l in body.splitlines()[1:]
-             if l.strip() and not l.strip().startswith("_Avoid_:")]
+    lines = [l.strip() for l in body.splitlines()]
+    cut = next((i for i, l in enumerate(lines) if l.startswith("_Avoid_:")), len(lines))
+    prose = [l for l in lines[1:cut] if l]
+    avoid = [l for l in lines[cut:] if l]
     joined = " ".join(prose)
     if not joined:
         bad.append(f"'{term}' has no definition line")
     elif len(joined) > 400:
         bad.append(f"'{term}' definition runs to {len(joined)} chars; "
                    "GLOSSARY-FORMAT.md says keep definitions to one or two sentences")
-    avoids = [l.strip() for l in body.splitlines()
-              if l.strip().startswith("_Avoid_:")]
-    if not avoids:
+    if not avoid:
         bad.append(f"'{term}' has no `_Avoid_:` line — the ticket requires the "
                    "terms to avoid, not just a definition")
-    elif not avoids[0][len("_Avoid_:"):].strip():
+    elif not avoid[0][len("_Avoid_:"):].strip():
         bad.append(f"'{term}' has an empty `_Avoid_:` line")
-
-# No entry may recommend the retired word to anyone else.
-for term, body in entries.items():
-    for line in body.splitlines():
-        s = line.strip().lower()
-        if s.startswith("_avoid_:") and "module" in s and term != "module":
-            bad.append(f"the '{term}' entry recommends the retired word 'module' "
-                       "under _Avoid_ — name widget, service or component instead")
+    # Naming the retired word AS an avoided synonym is the point; using it as
+    # this entry's own word is the thing that must not happen.
+    if term != "module" and re.search(r"\bmodules?\b", joined, re.I):
+        bad.append(f"the '{term}' definition uses the retired word 'module'")
+    if term == "module" and not re.search(r"retired", joined, re.I):
+        bad.append("the 'module' entry does not say the word is retired")
+    if term == "module":
+        # Retiring a word without saying what to use instead just leaves a hole.
+        named = [t for t in ("widget", "service", "component", "base class",
+                             "contract") if t in " ".join(avoid).lower()]
+        if len(named) < 2:
+            bad.append(f"the 'module' entry names only {len(named)} replacement "
+                       "term(s) in its `_Avoid_:` list — retiring a word without "
+                       "saying what to use instead just leaves a hole")
 
 if bad:
     print("FAIL|" + "; ".join(bad))
@@ -285,7 +301,8 @@ if not adr.is_file():
     print("FAIL|no such file — the service/widget boundary decision is not recorded")
     sys.exit(0)
 text = adr.read_text()
-low = text.lower()
+# Prose wraps, so needles must not depend on where a line happens to break.
+low = re.sub(r"\s+", " ", text.lower())
 bad = []
 
 # Every service that publishes a display glyph today must be named in the ADR.
@@ -314,24 +331,69 @@ else:
                                   "still publishes", "remains to be")):
         bad.append(f"{total} display glyph(s) still live in services/, but the ADR "
                    "does not say the migration is in progress")
+    # Unambiguous completion phrasings only. A phrase like "the services are
+    # clean" cannot go here: a negation ("must not be read as saying the
+    # services are clean") contains it too, and a substring test cannot tell
+    # the two apart. The positive in-progress requirement above is what
+    # actually carries this check.
     for claim in ("no longer", "already removed", "already migrated",
-                  "fully migrated", "complete migration"):
+                  "fully migrated", "complete migration", "has been moved",
+                  "have been moved", "presentation has been moved"):
         if claim in low:
             bad.append(f"the ADR says '{claim}', which is false today: {total} "
                        "display glyph(s) are still in services/")
 
-# The ADR must record the decision itself, not only the migration status.
+# The decision must record the decision itself, not only the migration status.
 for needle, why in (("state", "the boundary (services expose state)"),
                     ("presentation", "what moves out of them"),
                     ("widget", "who consumes the state")):
     if needle not in low:
         bad.append(f"the ADR never mentions {needle} — {why}")
 
+# A count in prose is the easiest thing to get wrong and the hardest for a
+# reader to notice, so lock it to the tree while the glyphs are still there.
+NUMBERS = {"two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
+           "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
+           "thirteen": 13, "fourteen": 14, "fifteen": 15, "sixteen": 16,
+           "seventeen": 17, "eighteen": 18, "nineteen": 19, "twenty": 20,
+           "one": 1, "zero": 0}
+if glyphs:
+    sites = []
+    for f in sorted(repo.rglob("*.qml")):
+        rel = f.relative_to(repo).parts
+        if rel[0] == "services" or {".git", ".scratch", ".agents", ".zed"} & set(rel):
+            continue
+        sites += re.findall(r"^\s*(?!.*(?:function|property)\s+\w+\s+textIcon\b)"
+                            r".*\btextIcon\b.*$",
+                            f.read_text(errors="replace"), re.M)
+    print(f"  (tree) call sites consuming a service glyph: {len(sites)}")
+    m = re.search(r"\b(" + "|".join(NUMBERS) + r") call sites?\b", low)
+    if not m:
+        bad.append(f"the ADR does not state how many call sites consume the glyphs "
+                   f"({len(sites)} of them) — an unstated count is a count nobody "
+                   "checks")
+    elif NUMBERS[m.group(1)] != len(sites):
+        bad.append(f"the ADR says '{m.group(1)} call sites' but the tree has "
+                   f"{len(sites)}")
+
 if bad:
     print("FAIL|" + "; ".join(bad))
 else:
     print(f"PASS|ADR 0001 names all {len(glyphs)} service(s) still publishing "
-          f"glyphs ({total} total) and marks the migration in progress")
+          f"glyphs ({total} total), marks the migration in progress, and its "
+          "call-site count matches the tree")
+
+# The ADR offers a mechanical test for its own boundary — a service must not
+# import the palette. Enforce it, because that is the one thing about this
+# decision that can be checked without reading the prose.
+offenders = [f.name for f in sorted((repo / "services").glob("*.qml"))
+             if re.search(r'import\s+"[^"]*ui"\s+as\s+\w+|UI\.Colors|UI\.Fonts',
+                          f.read_text(errors="replace"))]
+if offenders:
+    print("FAIL|a service imports the palette, which ADR 0001 names as the "
+          "mechanical test for the boundary: " + ", ".join(offenders))
+else:
+    print("PASS|no service imports the palette, as ADR 0001 requires")
 PY
 
 # ---------------------------------------------------------------------------
@@ -349,7 +411,7 @@ if not adr.is_file():
     print("FAIL|no such file — the panel architecture decision is not recorded")
     sys.exit(0)
 text = adr.read_text()
-low = text.lower()
+low = re.sub(r"\s+", " ", text.lower())   # prose wraps; needles must not care
 bad = []
 skip = {".git", ".scratch", ".agents", ".zed", "docs"}
 
@@ -372,6 +434,12 @@ if popups:
     if "popupwindow" not in low:
         bad.append(f"{len(popups)} file(s) still declare a PopupWindow but the ADR "
                    "never names the type")
+    # Name the files themselves, so whoever implements the panels knows what to
+    # delete. Mirrors check (C), which names the services still holding glyphs.
+    for f in popups:
+        if f.name not in text:
+            bad.append(f"{f.relative_to(repo).as_posix()} still declares a "
+                       "PopupWindow but the ADR does not name the file")
     if not any(m in low for m in ("in progress", "not yet implemented", "not yet "
                                   "built", "still uses", "still contains",
                                   "remains to be")):
@@ -388,19 +456,24 @@ if grabs:
                    "still in the tree but the ADR does not record it as deleted "
                    "rather than ported")
 
-# The reasons the decision exists must all be recorded, in some wording.
+# The four reasons the decision exists must all be recorded. The needles are
+# deliberately specific: "focus" appears everywhere in this subject, so a bare
+# mention of it proves nothing.
 for needle, why in (
     ("popupwindow", "what is being abandoned"),
-    ("focus", "why popups cannot take keyboard input at open time"),
-    ("exclusive", "why the short exclusive-focus prime exists"),
+    ("hover", "why popups cannot take keyboard input until clicked or hovered"),
+    ("pointer event", "why exclusive focus alone would break clicks on other outputs"),
     ("hyprland", "the deliberate compositor trade-off"),
 ):
     if needle not in low:
         bad.append(f"the ADR does not mention {needle} — {why}")
 if "one panel" not in low and "at a time" not in low:
     bad.append("the ADR does not record that only one panel is open at a time")
-if "deleted" not in low and "removed" not in low:
-    bad.append("the ADR does not say the focus workaround is deleted rather than ported")
+# The claim is specifically "deleted, not ported". Checking for a stray
+# "deleted" or "removed" anywhere would pass on unrelated wording.
+if "rather than ported" not in low and "not ported" not in low:
+    bad.append("the ADR does not say the focus workaround is deleted rather than "
+               "ported")
 
 if bad:
     print("FAIL|" + "; ".join(bad))
@@ -477,6 +550,15 @@ else:
                        "implementer writing the indicator cannot find the inversion")
         if "idle" not in atext.lower():
             bad.append("AGENTS.md says nothing about the idle-lock helper")
+        else:
+            # Naming the helper is not enough; the instruction has to carry the
+            # inversion, because that is the part a reader gets wrong.
+            if not re.search(r"will \*{0,2}not\*{0,2} lock", atext, re.I):
+                bad.append("AGENTS.md names the helper but never says that its "
+                           "enabled/true means the machine will NOT lock")
+            if not re.search(r"inhibit", atext, re.I):
+                bad.append("AGENTS.md's idle-lock convention does not say the words "
+                           "name the inhibit rather than the locking")
     else:
         bad.append("no AGENTS.md to carry the helper convention")
 
@@ -484,10 +566,13 @@ else:
 stale = sorted(set(re.findall(r"pkill[^\n]*waybar", src)))
 if stale:
     print(f"  (helper) stale call(s) against the old bar: {'; '.join(stale)}")
-    if agents.is_file() and "waybar" not in agents.read_text().lower():
-        bad.append("the helper still carries a stale process-kill against the old "
-                   "bar, but nothing in AGENTS.md records it — the spec says "
-                   "record it, do not edit the helper")
+    # "waybar" alone is too weak — the record has to name the kill itself.
+    if agents.is_file():
+        alow = re.sub(r"\s+", " ", agents.read_text().lower())
+        if "pkill" not in alow or "waybar" not in alow:
+            bad.append("the helper still carries a stale `pkill … waybar` against the "
+                       "old bar, but AGENTS.md does not record it — the spec says "
+                       "record it, do not edit the helper")
 
 if bad:
     print("FAIL|" + "; ".join(bad))
@@ -512,7 +597,7 @@ if not agents.is_file():
     print("FAIL|AGENTS.md is missing")
     sys.exit(0)
 text = agents.read_text()
-low = text.lower()
+low = re.sub(r"\s+", " ", text.lower())   # prose wraps; needles must not care
 bad = []
 
 # Ticket 02 restored this; it is load-bearing under the panel architecture, so
@@ -527,10 +612,17 @@ for needle, why in (("wlrlayershell.namespace", "every overlay surface sets a na
 # going stale the way the older note did.
 verifiers = sorted(p.name for p in (repo / "scripts").glob("verify-*.sh"))
 print(f"  (tree) verifiers in scripts/: {', '.join(verifiers) or 'none'}")
-undocumented = [v for v in verifiers if v not in text]
+# Each one must be a BULLET of its own, not merely named somewhere: a passing
+# mention in a summary line documents nothing about what the script checks.
+bulleted = set(re.findall(r"^- `(?:scripts/)?([A-Za-z0-9._-]+\.sh)`",
+                          text, re.M))
+undocumented = [v for v in verifiers if v not in bulleted]
 if undocumented:
-    bad.append("AGENTS.md does not document these verifier scripts: "
+    bad.append("AGENTS.md has no bullet describing these verifier scripts: "
                + ", ".join(undocumented))
+for orphan in sorted(b for b in bulleted if b.startswith("verify-")
+                     and b not in verifiers):
+    bad.append(f"AGENTS.md documents {orphan}, which is not in scripts/")
 for stale_claim in ("no verification step", "there is no verification",
                     "no test harness", "nothing objects"):
     if stale_claim in low:
