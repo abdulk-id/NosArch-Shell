@@ -306,9 +306,16 @@ Item {
     //
     // The twelve bar modules. Each is instantiated from its own file — the
     // same load path the bar uses — once per attached screen. The two
-    // panel-takers get the popup-state contract the real bar passes them: a
-    // REQUIRED property, so instantiating them without it would fail for a
-    // different (and misleading) reason than the one under test.
+    // panel-takers get a real PopupState, REQUIRED, so instantiating them
+    // without it would fail for a different (and misleading) reason than the
+    // one under test.
+    //
+    // The props here are static, so a popup state cannot be built per screen
+    // from them — which is why instantiateSet passes a per-screen one through
+    // the `popupState` hook below. The static `popupState: popupStateStub`
+    // that used to sit here was worse than useless: it declared a UNIFORM
+    // two-argument set/isActive while the two real callers disagreed with each
+    // other about that arity, so no smoke run could ever have noticed.
 
     readonly property var widgetPlan: [
         { name: "ArchIconModule.qml", path: "shell/topisland/modules/ArchIconModule.qml", props: {} },
@@ -317,20 +324,28 @@ Item {
         { name: "ClockModule.qml", path: "shell/topisland/modules/ClockModule.qml", props: {} },
         { name: "CpuUsageModule.qml", path: "shell/topisland/modules/CpuUsageModule.qml", props: {} },
         { name: "MemoryUsageModule.qml", path: "shell/topisland/modules/MemoryUsageModule.qml", props: {} },
-        { name: "NetworkModule.qml", path: "shell/topisland/modules/NetworkModule.qml", props: { popupState: popupStateStub } },
+        { name: "NetworkModule.qml", path: "shell/topisland/modules/NetworkModule.qml", props: {} },
         { name: "NotificationModule.qml", path: "shell/topisland/modules/NotificationModule.qml", props: {} },
         { name: "PlayerModule.qml", path: "shell/topisland/modules/PlayerModule.qml", props: {} },
         { name: "SystemTrayModule.qml", path: "shell/topisland/modules/SystemTrayModule.qml", props: {} },
-        { name: "VolumeModule.qml", path: "shell/topisland/modules/VolumeModule.qml", props: { popupState: popupStateStub } },
+        { name: "VolumeModule.qml", path: "shell/topisland/modules/VolumeModule.qml", props: {} },
         { name: "Workspaces.qml", path: "shell/topisland/modules/Workspaces.qml", props: {} }
     ]
+
+    // Widgets whose popup state must be PER SCREEN, and so cannot come from
+    // the static props above. Named rather than detected, because the property
+    // is required and typed: a widget that needed one and were missing from
+    // this list would fail to construct, which is loud — so the list cannot
+    // quietly rot.
+    readonly property var perScreenPopupWidgets: ["NetworkModule.qml", "VolumeModule.qml"]
 
     // ------------------------------------------------------------------ shared
     // components
     //
-    // components/qmldir: TopIslandModule (the widget base), Separator and
-    // ProgressOSDItem. Required properties are supplied with the values the
-    // shell actually passes, so a missing required property is a real failure.
+    // components/qmldir: TopIslandModule (the widget base), Separator,
+    // ProgressOSDItem and PopupState. Required properties are supplied with the
+    // values the shell actually passes, so a missing required property is a
+    // real failure.
 
     readonly property var componentPlan: [
         {
@@ -347,6 +362,15 @@ Item {
             name: "ProgressOSDItem.qml",
             path: "components/ProgressOSDItem.qml",
             props: { value: 50, text: "50%", fontIcon: "󰕾", osdVisible: false, accessibleName: "smoke" }
+        },
+        {
+            // The per-surface popup state (ticket 10). Instantiated like any
+            // other shared component, so a PopupState that stopped loading —
+            // or that drifted back to taking a screen — fails here rather than
+            // at the first click on a panel.
+            name: "PopupState.qml",
+            path: "components/PopupState.qml",
+            props: {}
         }
     ]
 
@@ -356,16 +380,6 @@ Item {
             text: "smoke"
             font.pixelSize: 12
         }
-    }
-
-    // The popup contract TopIsland.qml hands NetworkModule/VolumeModule. Always
-    // closed: the smoke test reads the bar state of each widget, never an open
-    // panel.
-    QtObject {
-        id: popupStateStub
-        function set(id: string, screen: string): void {}
-        function close(): void {}
-        function isActive(id: string, screen: string): bool { return false; }
     }
 
     // --------------------------------------------------- contract probes
@@ -752,7 +766,16 @@ Item {
         // Every screen gets its own full set: a widget that only breaks on the
         // second monitor (the class of bug the spec calls out) must fail here.
         for (const w of smokeRoot.widgetPlan) {
-            smokeRoot.instantiateOne("widget", w.name, w.path, w.props, host, screen);
+            // A panel-taker's popup state is built FRESH for this screen and
+            // handed in, which is the property that matters and that the plan
+            // cannot express: two screens' widgets holding one shared state
+            // object is the multi-monitor bug this harness exists to rule out,
+            // so the smoke run would be asserting the wrong shape if it did it.
+            const extra = smokeRoot.perScreenPopupWidgets.indexOf(w.name) >= 0
+                ? { popupState: smokeRoot.makePopupState(screen, host) }
+                : {}
+            smokeRoot.instantiateOne("widget", w.name, w.path, w.props, host, screen,
+                undefined, undefined, undefined, extra)
         }
         for (const w of smokeRoot.contractWidgetPlan) {
             smokeRoot.instantiateOne("widget", w.name, w.path, w.props, host, screen,
@@ -767,11 +790,36 @@ Item {
         }
     }
 
+    // One PopupState per screen, parented into that screen's host so it dies
+    // with the host. Created from the SHIPPED file, not as a stand-in: a stub
+    // here could agree with itself about an arity the real widgets do not, and
+    // agreeing with itself is the whole failure mode this ticket removed.
+    //
+    // A failure is WARNED about rather than `mark`ed: `mark` would add a result
+    // for a name that is in no plan, and the summary is `planned - passed`, so
+    // inventing a result would turn one failure into a phantom second one.
+    // Returning null is enough — the widget it was meant for has a REQUIRED,
+    // TYPED property, so it fails to construct and that failure IS planned.
+    function makePopupState(screen: string, host: Item): var {
+        const comp = Qt.createComponent("components/PopupState.qml")
+        if (comp.status !== Component.Ready) {
+            console.warn("SMOKE FAIL popup-state(" + screen + ") — PopupState failed to "
+                + "load: " + comp.errorString());
+            return null
+        }
+        const state = comp.createObject(host !== null ? host : smokeRoot, {})
+        if (state === null) {
+            console.warn("SMOKE FAIL popup-state(" + screen + ") — PopupState would not "
+                + "construct");
+        }
+        return state
+    }
+
     // `singleton` and `probe` are deliberately untyped: a typed `string`
     // parameter coerces an omitted argument to the literal text "undefined",
     // and then the code calls a function by that name — which fails silently
-    // and for the wrong reason. `loadOnly` likewise.
-    function instantiateOne(kind: string, name: string, path: string, props: var, host: Item, screen: string, singleton, probe, loadOnly): void {
+    // and for the wrong reason. `loadOnly` and `extra` likewise.
+    function instantiateOne(kind: string, name: string, path: string, props: var, host: Item, screen: string, singleton, probe, loadOnly, extra): void {
         // A `pragma Singleton` type is constructed by REFERENCING it, not by
         // createObject — createObject on one returns null and would report a
         // false failure. Referencing the imported namespace is both the correct
@@ -804,7 +852,9 @@ Item {
                 + "entrypoint draws none");
             return;
         }
-        const obj = comp.createObject(host !== null ? host : smokeRoot, props || {});
+        const supplied = props || {}
+        const obj = comp.createObject(host !== null ? host : smokeRoot,
+            extra === undefined ? supplied : Object.assign({}, supplied, extra))
         if (obj === null) {
             smokeRoot.mark(kind, name, false,
                 "createObject returned null — required property missing or object rejected");
