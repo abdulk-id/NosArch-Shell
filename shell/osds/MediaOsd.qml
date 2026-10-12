@@ -24,7 +24,7 @@ Scope {
     }
 
     LazyLoader {
-        active: (Services.Media.isAvailable && mediaOsd.osdVisible)
+        active: (Services.MediaService.isAvailable && mediaOsd.osdVisible)
 
         PanelWindow {
             anchors {
@@ -61,10 +61,10 @@ Scope {
 
                         Layout.rightMargin: 10
 
-                        source: Services.Media.trackArtUrl
+                        source: Services.MediaService.trackArtUrl
                         fillMode: Image.PreserveAspectCrop
 
-                        visible: (Services.Media.trackArtUrl !== "")
+                        visible: (Services.MediaService.trackArtUrl !== "")
                     }
 
                     ColumnLayout {
@@ -75,11 +75,11 @@ Scope {
                             id: statusText
 
                             function getStatusText() {
-                                if (Services.Media.isPlaying) {
-                                    return Services.Media.getPlayerIcon() + "  Playing";
-                                } else if (Services.Media.isPaused) {
+                                if (Services.MediaService.isPlaying) {
+                                    return Services.MediaService.getPlayerIcon() + "  Playing";
+                                } else if (Services.MediaService.isPaused) {
                                     return "  Paused";
-                                } else if (Services.Media.isStopped) {
+                                } else if (Services.MediaService.isStopped) {
                                     return "  Stopped";
                                 } else {
                                     return "";
@@ -100,7 +100,7 @@ Scope {
                         Text {
                             id: titleText
 
-                            text: Services.Media.title.trim() !== "" ? Services.Media.title : "Unknown title"
+                            text: Services.MediaService.title.trim() !== "" ? Services.MediaService.title : "Unknown title"
                             color: UI.Colors.foreground
                             elide: Text.ElideRight
 
@@ -113,7 +113,7 @@ Scope {
                         Text {
                             id: artistText
 
-                            text: Services.Media.artist
+                            text: Services.MediaService.artist
                             color: UI.Colors.foregroundSecondary
                             elide: Text.ElideRight
 
@@ -133,11 +133,11 @@ Scope {
     Connections {
         id: activePlayerConnection
 
-        target: Services.Media
+        target: Services.MediaService
         ignoreUnknownSignals: true
 
         function onTrackChanged() {
-            if (!Services.Media.isStopped) {
+            if (!Services.MediaService.isStopped) {
                 mediaOsd.showOsd();
             }
         }

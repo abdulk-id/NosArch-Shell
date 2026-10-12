@@ -172,9 +172,9 @@ Item {
             }
         },
         {
-            name: "Media",
+            name: "MediaService",
             read: () => {
-                const m = Services.Media;
+                const m = Services.MediaService;
                 if (!m.isAvailable) {
                     return "no active player";
                 }
@@ -221,7 +221,7 @@ Item {
         Services.SystemInfo,
         Services.AudioService,
         Services.BluetoothService,
-        Services.Media,
+        Services.MediaService,
         Services.NetworkService,
         Services.NotificationService
     ]
@@ -284,7 +284,8 @@ Item {
         { name: "CpuWidget.qml", path: "shell/widgets/CpuWidget.qml", props: {} },
         { name: "MemoryWidget.qml", path: "shell/widgets/MemoryWidget.qml", props: {} },
         { name: "BatteryWidget.qml", path: "shell/widgets/BatteryWidget.qml", props: {} },
-        { name: "BluetoothWidget.qml", path: "shell/widgets/BluetoothWidget.qml", props: {} }
+        { name: "BluetoothWidget.qml", path: "shell/widgets/BluetoothWidget.qml", props: {} },
+        { name: "PlayerWidget.qml", path: "shell/widgets/PlayerWidget.qml", props: {} }
     ]
 
     Component {
@@ -554,6 +555,34 @@ Item {
         const bogusComp = reg.componentFor(bogus);
         smokeRoot.contract("registry-rejected",
             "name=" + bogus + " resolves=" + (bogusComp === null ? "no" : "YES-UNEXPECTEDLY"));
+    }
+
+    function probePlayerWidget(): void {
+        const comp = Qt.createComponent("shell/widgets/PlayerWidget.qml");
+        if (comp.status !== Component.Ready) {
+            smokeRoot.contract("player-widget",
+                "available=UNKNOWN nowPlaying=UNKNOWN action=UNKNOWN");
+            return;
+        }
+        const w = comp.createObject(smokeRoot, {});
+        if (w === null) {
+            smokeRoot.contract("player-widget",
+                "available=UNKNOWN nowPlaying=UNKNOWN action=UNKNOWN");
+            return;
+        }
+        smokeRoot.contract("player-widget",
+            "available=" + w.playerAvailable +
+            " nowPlaying=\"" + w.nowPlayingText + "\"" +
+            " display=\"" + w.barDisplayText + "\"" +
+            " action=togglePlayPause");
+        w.destroy();
+    }
+
+    function probeMediaServiceRename(): void {
+        const planNames = smokeRoot.servicePlan.map(s => s.name);
+        const hasOld = planNames.indexOf("Media") !== -1;
+        smokeRoot.contract("media-service",
+            "name=MediaService old-name=" + (hasOld ? "present" : "absent"));
     }
 
     function probeClockPanel(): void {
@@ -1443,6 +1472,8 @@ Item {
         smokeRoot.probeClockPanel();
         smokeRoot.probeBaseHover();
         smokeRoot.probeTicket13Widgets();
+        smokeRoot.probePlayerWidget();
+        smokeRoot.probeMediaServiceRename();
 
         // The bar's contents (ticket 07): the reader's verdict has already been
         // logged by the singleton itself, so what is added here is that live

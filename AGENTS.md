@@ -12,7 +12,7 @@ Quickshell desktop shell configuration (`nosarch-shell`) written in QML.
 - `shell/widgets/`: The widget extension point. Every bar widget lives here, extending `BarWidget` (or `SimpleBarWidget` for a trivial label-plus-click widget). Adding one means copying a file into this directory, adding one line to `WidgetRegistry.qml`'s `entries` map, and adding one line to `qmldir` — nothing else.
 - `shell/panels/`: The panel architecture — the layer-shell overlay a panel is drawn on (`PanelSurface`), the visible card and its keyboard focus target (`PanelCard`), and the per-surface coordinator holding the one open-panel slot (`PanelCoordinator`). A widget never imports any of it: it declares `panelContent` on the contract and asks the coordinator to open it.
 - `shell/bar/`: The bar's own directory. `BarConfig` (a singleton) reads the user's configuration file, validates it and applies the failure policy; `BarZone` builds one zone's widgets from what `BarConfig` answered and sizes itself to them; `BarSurface` is the bar itself — three zones on one plate, filled from the palette; `Bar` is one `PanelWindow` per attached screen, holding a `BarSurface`. `BarSurface` is a plain `Item` that owns no window, which is what lets the smoke test build and measure the whole layout without drawing a surface.
-- `services/`: Contains singletons for `SystemInfo`, `NotificationService`, `Media` etc.; register via `services/qmldir`
+- `services/`: Contains singletons for `SystemInfo`, `NotificationService`, `MediaService` etc.; register via `services/qmldir`
 - `components/`: Contains shared components (`Separator`, `ProgressOSDItem`, `PopupState`)
 - `testing/`: Development readout panels, not verification. `ServiceReadout.qml` renders live service values by eye; it asserts nothing and no script runs it.
 
@@ -172,6 +172,13 @@ for QML the framework's only failure signal is the log.
   click, battery charge with low-charge colouring, bluetooth adapter state),
   that battery and bluetooth presentation no longer lives in services, and
   that the legacy top-island modules delegate to the contract widgets.
+- `scripts/verify-media-player-widget.sh` checks the media player widget and
+  the `MediaService` rename. Statically, configuration type `player` resolves
+  to `PlayerWidget` on the contract, `services/qmldir` registers
+  `MediaService` (not `Media`), no QML still references `Services.Media`, and
+  the legacy top-island player module delegates to the contract widget. Then it
+  launches `smoke.qml` and reads `SMOKE CONTRACT` lines for the player widget
+  members and the renamed service singleton.
 
 What remains true from the old note: **the process itself still exits 0 even
 when every binding throws**, so a QML syntax or type error only surfaces at

@@ -54,7 +54,8 @@ Singleton {
         "cpu": "CpuWidget.qml",
         "memory": "MemoryWidget.qml",
         "battery": "BatteryWidget.qml",
-        "bluetooth": "BluetoothWidget.qml"
+        "bluetooth": "BluetoothWidget.qml",
+        "player": "PlayerWidget.qml"
     })
 
     // Every registered name, sorted — for logging and for the smoke readout.

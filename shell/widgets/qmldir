@@ -15,4 +15,5 @@ CpuWidget CpuWidget.qml
 MemoryWidget MemoryWidget.qml
 BatteryWidget BatteryWidget.qml
 BluetoothWidget BluetoothWidget.qml
+PlayerWidget PlayerWidget.qml
 singleton WidgetRegistry 1.0 WidgetRegistry.qml
