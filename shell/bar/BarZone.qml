@@ -89,9 +89,24 @@ Item {
                 type: entry.type, reason: "widget-failed-to-load"
             })
         }
+        // The entry's settings, verbatim, become the widget's `options` at
+        // construction (ticket 09). This is the ONLY place options cross from
+        // configuration into a widget, and it is one property on the contract,
+        // so no widget needs to know it was built from configuration at all.
+        //
+        // `entry.settings` is already the entry minus its `type`, deep-copied by
+        // the reader, so nothing here re-parses or re-validates it. The
+        // `undefined` case is not hypothetical: `construct` is public and the
+        // smoke test calls it with a hand-built entry, so an entry that never
+        // went through the reader must not crash the zone.
+        const settings = (entry.settings === undefined || entry.settings === null)
+            ? ({})
+            : entry.settings
         let widget = null
         try {
-            widget = component.createObject(parent !== null ? parent : row, {})
+            widget = component.createObject(parent !== null ? parent : row, {
+                options: settings
+            })
         } catch (e) {
             Bar.BarConfig.skipAt(where, index, {
                 type: entry.type, reason: "widget-threw-while-building", detail: "" + e
@@ -106,6 +121,24 @@ Item {
                 type: entry.type, reason: "widget-failed-to-construct"
             })
             return null
+        }
+        // Options the widget does not declare are refused BY NAME, and the
+        // widget is kept. The widget is the only thing that knows what it
+        // declares, so it is the only place this question can be answered —
+        // which is why the check lives here, immediately after construction,
+        // rather than in the reader (which cannot know) or in each widget
+        // (which would make twelve copies of one rule).
+        //
+        // Reported through BarConfig so it lands in the same CONFIG stream as
+        // every other configuration complaint. See the decision and its
+        // reasoning at reportUnrecognisedOption.
+        if (widget.unrecognisedOptions !== undefined && widget.unrecognisedOptions !== null) {
+            const unrecognised = widget.unrecognisedOptions
+            for (let u = 0; u < unrecognised.length; u++) {
+                Bar.BarConfig.reportUnrecognisedOption(where, index, entry.type,
+                    unrecognised[u], Object.keys(widget.optionDefaults === undefined
+                        ? ({}) : widget.optionDefaults))
+            }
         }
         return widget
     }
