@@ -1,0 +1,13 @@
+# shell/widgets — the widget extension point (ticket 06).
+#
+# One predictable directory. Adding a widget = copy a file in here, add one
+# line to WidgetRegistry.qml's `entries`, add one line below. Nothing else.
+#
+# A qmldir disables Quickshell's synthetic qmldir for its directory, so every
+# type here must have a line (scripts/verify-widget-contract.sh asserts this).
+# Note the `import "."` these files use to reach each other resolves only
+# because this file exists — without it, sibling types are unresolvable.
+BarWidget BarWidget.qml
+SimpleBarWidget SimpleBarWidget.qml
+ClockWidget ClockWidget.qml
+singleton WidgetRegistry 1.0 WidgetRegistry.qml
