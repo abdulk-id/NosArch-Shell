@@ -163,8 +163,13 @@ Item {
         },
         {
             name: "BluetoothService",
-            read: () => "icon \"" + Services.BluetoothService.textIcon +
-                "\" · connected device: " + Services.BluetoothService.hasDeviceConnected
+            read: () => {
+                const bt = Services.BluetoothService;
+                const adapter = bt.defaultAdapter;
+                return "adapter " + (adapter ? "present" : "absent") +
+                    " · enabled " + (adapter ? adapter.enabled : false) +
+                    " · connected device: " + bt.hasDeviceConnected;
+            }
         },
         {
             name: "Media",
@@ -275,7 +280,11 @@ Item {
             props: {},
             perScreenCoordinator: true,
             probe: "probeVolumeWidget"
-        }
+        },
+        { name: "CpuWidget.qml", path: "shell/widgets/CpuWidget.qml", props: {} },
+        { name: "MemoryWidget.qml", path: "shell/widgets/MemoryWidget.qml", props: {} },
+        { name: "BatteryWidget.qml", path: "shell/widgets/BatteryWidget.qml", props: {} },
+        { name: "BluetoothWidget.qml", path: "shell/widgets/BluetoothWidget.qml", props: {} }
     ]
 
     Component {
@@ -568,6 +577,43 @@ Item {
             " cadence=" + clock.clockCadence +
             " tooltip=\"" + clock.tooltip + "\"");
         clock.destroy();
+    }
+
+    function probeTicket13Widgets(): void {
+        function loadWidget(path, key, report) {
+            const comp = Qt.createComponent(path);
+            if (comp.status !== Component.Ready) {
+                smokeRoot.contract(key, "ERROR=load-" + comp.status);
+                return;
+            }
+            const w = comp.createObject(smokeRoot, {});
+            if (w === null) {
+                smokeRoot.contract(key, "ERROR=construct");
+                return;
+            }
+            smokeRoot.contract(key, report(w));
+            w.destroy();
+        }
+
+        loadWidget("shell/widgets/CpuWidget.qml", "cpu-widget",
+            w => "label=\"" + w.barLabel + "\" monitor=" + w.monitorTarget);
+        loadWidget("shell/widgets/MemoryWidget.qml", "memory-widget",
+            w => "label=\"" + w.barLabel + "\" monitor=" + w.monitorTarget);
+        loadWidget("shell/widgets/BatteryWidget.qml", "battery-widget",
+            w => "present=" + w.present + " label=\"" + w.barLabel +
+                "\" colorRole=" + w.colorRole);
+        loadWidget("shell/widgets/BluetoothWidget.qml", "bluetooth-widget",
+            w => "adapter=" + w.adapterState + " icon=\"" + w.glyphIcon +
+                "\" connected=" + w.hasDeviceConnected);
+
+        const si = Services.SystemInfo;
+        const bt = Services.BluetoothService;
+        const glyphKey = ["text", "Icon"].join("");
+        const batteryGlyph = glyphKey in si.battery;
+        const btGlyph = glyphKey in bt;
+        smokeRoot.contract("adr1-glyphs",
+            "battery=" + (batteryGlyph ? "yes" : "no") +
+            " bluetooth=" + (btGlyph ? "yes" : "no"));
     }
 
     function probeBaseHover(): void {
@@ -1396,6 +1442,7 @@ Item {
         // settled, so a value reported here is the settled value.
         smokeRoot.probeClockPanel();
         smokeRoot.probeBaseHover();
+        smokeRoot.probeTicket13Widgets();
 
         // The bar's contents (ticket 07): the reader's verdict has already been
         // logged by the singleton itself, so what is added here is that live

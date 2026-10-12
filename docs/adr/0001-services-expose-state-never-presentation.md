@@ -42,21 +42,19 @@ Presentation is still living in services. As of this record:
 | Service | What it still publishes |
 | --- | --- |
 | `services/NetworkService.qml` | `textIcon`, plus a `wifiIcons` array indexed by signal strength |
-| `services/BluetoothService.qml` | `textIcon` covering adapter-enabled, discoverable and device-connected |
-| `services/SystemInfo.qml` | battery `textIcon`, plus `defaultIcons` and `chargingIcons` arrays |
 
-Nine call sites consume those glyphs today: four under `shell/` (the network,
-bluetooth and battery widgets — the network widget reads its glyph twice, once
-in the bar and once in its panel), two in `smoke.qml`, and three in the
-`testing/` service readout. Tickets 12 (network)
-and 13 (bluetooth and battery) move them out, each onto the widget that draws
-them. Until those land, the table above is the truth: do not read this record as
-evidence that the services are presentation-free. `scripts/verify-docs.sh` fails
-if it ever claims otherwise.
+Ticket 13 moved battery and bluetooth presentation into `BatteryWidget` and
+`BluetoothWidget`; `BluetoothService` and `SystemInfo` do not publish glyphs.
 
-**Audio is out of the service (ticket 11).** The migration above is still in
-progress for the other three services, and audio is not among them:
-`AudioService` publishes no glyph.
+Five call sites consume the remaining glyphs today: three under `shell/` (the
+network widget reads its glyph twice, once in the bar and once in its panel),
+one in `smoke.qml`, and one in the `testing/` service readout. Ticket 12
+(network) moves the rest out, onto the widget that draws it. Until that lands,
+the table above is the truth: do not read this record as evidence that the
+services are presentation-free. `scripts/verify-docs.sh` fails if it ever claims
+otherwise.
+
+**Audio is out of the service (ticket 11).** `AudioService` publishes no glyph:
 the output and input `textIcon` properties are gone, and its inputs —
 `volume`, `isMuted`, `deviceFormFactor`, `isBluetooth`, `defaultSink` — are all
 still published by name, so nothing a consumer needed was lost. The decision
@@ -68,11 +66,10 @@ failure mode 4 above, reached by a different route. The widget then applies
 `UI.Colors` for the muted colour, since a service may not import the palette and
 a component that decides *appearance* should not either.
 
-This is the migration's worked example for the tickets still to come: remove the
+This is the migration's worked example for the ticket still to come: remove the
 property, keep every input by name, and put the decision in something that draws.
-Until network, bluetooth and battery have done the same, the table above is the
-truth about the services, and this record must not be read as saying they are
-presentation-free.
+Until network has done the same, the table above is the truth about the
+services, and this record must not be read as saying they are presentation-free.
 
 ## Consequences
 

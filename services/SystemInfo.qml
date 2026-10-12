@@ -111,30 +111,6 @@ Singleton {
         readonly property bool charging: present && battery.state === UPowerDeviceState.Charging
         readonly property bool fullyCharged: present && battery.state === UPowerDeviceState.FullyCharged
         readonly property bool pendingCharge: present && battery.state === UPowerDeviceState.PendingCharge
-
-        readonly property var defaultIcons: ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]
-        readonly property var chargingIcons: ["󰢜", "󰂆", "󰂇", "󰂈", "󰢝", "󰂉", "󰢞", "󰂊", "󰂋", "󰂅"]
-        readonly property string textIcon: {
-            if (!batteryObject.present) {
-                return "󱉝";
-            }
-
-            let iconIndex = Math.min(Math.floor(percentage / 10), 9);
-
-            if (batteryObject.fullyCharged) {
-                if (UPower.onBattery) {
-                    return defaultIcons[iconIndex];
-                } else {
-                    return chargingIcons[iconIndex];
-                }
-            } else if (batteryObject.charging) {
-                return chargingIcons[iconIndex];
-            } else if (batteryObject.pendingCharge) {
-                return "";
-            }
-
-            return defaultIcons[iconIndex];
-        }
     }
 
     // Update Timer

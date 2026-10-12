@@ -50,7 +50,11 @@ Singleton {
         // (ticket 11), and so the first that needed presentation moved out of a
         // service: AudioService publishes state, VolumeWidget decides what it
         // looks like (ADR 0001).
-        "volume": "VolumeWidget.qml"
+        "volume": "VolumeWidget.qml",
+        "cpu": "CpuWidget.qml",
+        "memory": "MemoryWidget.qml",
+        "battery": "BatteryWidget.qml",
+        "bluetooth": "BluetoothWidget.qml"
     })
 
     // Every registered name, sorted — for logging and for the smoke readout.
