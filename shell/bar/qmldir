@@ -11,10 +11,18 @@
 #              resolves no names and loads no files, so configuration cannot
 #              become code here either.
 #
-# Ticket 08 adds the bar itself here — the three zones arranged on a surface,
-# the true centring, and the floating/full-width toggle.
+#   BarSurface the bar inside a window: three zones anchored to one container,
+#              the true centring of the centre zone, and the plate's rounding
+#              and fill. A plain Item — it owns no window, so the layout can be
+#              measured without one.
+#
+#   Bar        the window: one PanelWindow per attached screen, with the
+#              layer-shell layer and namespace the convention requires.
 #
 # A qmldir disables Quickshell's synthetic qmldir for its directory, so every
-# type here needs a line below (scripts/verify-bar-config.sh asserts this).
+# type here needs a line below (scripts/verify-bar-config.sh and
+# scripts/verify-bar-surface.sh both assert this).
 singleton BarConfig 1.0 BarConfig.qml
 BarZone BarZone.qml
+BarSurface BarSurface.qml
+Bar Bar.qml

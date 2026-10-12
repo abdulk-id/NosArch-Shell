@@ -7,10 +7,10 @@ Quickshell desktop shell configuration (`nosarch-shell`) written in QML.
 ## File Layout
 
 - `shell.qml`: Quickshell entrypoint. Imports and composes all shell components.
-- `smoke.qml`: Smoke-test entrypoint. Instantiates every widget, service and shared component (once per screen) and reports each by name. It draws nothing — run it through `scripts/verify-smoke.sh`, never as a live shell.
+- `smoke.qml`: Smoke-test entrypoint. Instantiates every widget, service and shared component (once per screen) and reports each by name. It draws nothing — run it through `scripts/verify-smoke.sh`, never as a live shell. `Bar.qml` is the one planned type it only *loads* rather than instantiates, because it owns layer-shell surfaces; `BarSurface` (the layout, with no window) is instantiated and its geometry measured.
 - `shell/`: Contains all the shell components to be used in the shell entrypoint.
 - `shell/widgets/`: The widget extension point. Every bar widget lives here, extending `BarWidget` (or `SimpleBarWidget` for a trivial label-plus-click widget). Adding one means copying a file into this directory, adding one line to `WidgetRegistry.qml`'s `entries` map, and adding one line to `qmldir` — nothing else.
-- `shell/bar/`: The bar's own directory. `BarConfig` (a singleton) reads the user's configuration file, validates it and applies the failure policy; `BarZone` builds one zone's widgets from what `BarConfig` answered. The bar *surface* — three zones arranged, centred, floating or full-width — is not here yet and is ticket 08.
+- `shell/bar/`: The bar's own directory. `BarConfig` (a singleton) reads the user's configuration file, validates it and applies the failure policy; `BarZone` builds one zone's widgets from what `BarConfig` answered and sizes itself to them; `BarSurface` is the bar itself — three zones on one plate, filled from the palette; `Bar` is one `PanelWindow` per attached screen, holding a `BarSurface`. `BarSurface` is a plain `Item` that owns no window, which is what lets the smoke test build and measure the whole layout without drawing a surface.
 - `services/`: Contains singletons for `SystemInfo`, `NotificationService`, `Media` etc.; register via `services/qmldir`
 - `components/`: Contains shared components (`Separator`, `ProgressOSDItem`)
 - `testing/`: Development readout panels, not verification. `ServiceReadout.qml` renders live service values by eye; it asserts nothing and no script runs it.
@@ -27,6 +27,9 @@ Quickshell desktop shell configuration (`nosarch-shell`) written in QML.
 - **Configuration may choose a widget name and nothing else.** An entry's `type` is the only thing it decides; resolution goes through `WidgetRegistry.componentFor()`. An entry carrying a `path` or `file` key is **refused with a named log line**, not silently stripped — a user who wrote one would otherwise believe it worked, and the file is installer-deployed to every machine, so honouring it would make a user-owned text file a code-execution surface. The shell never writes a configuration file: `NOSARCH_CONFIG_EMIT=1` prints the effective configuration as one JSON log line instead.
 - **Widgets extend the contract in `shell/widgets/`, never a bare `Item`.** A bar widget extends `BarWidget` and declares the same required interface: `content` (a `Component` for the bar), `activate` (a `var` click action, called as `activate(widget)`) and `tooltip` (a `string`). Panel content is genuinely optional: `panelContent` defaults to `null` and a widget with no panel declares nothing rather than an empty `Component` — read the distinction through `hasPanel`. The dim-when-idle/brighten-on-hover affordance and the tooltip live in `BarWidget`, so no widget re-implements them. The simplified `SimpleBarWidget` builds `content` and `tooltip` from a required `label` so trivial widgets declare only what they have.
 - **A configuration widget name resolves through `WidgetRegistry`'s `entries` map, never a file path.** The map is a literal in shell code; values are file names resolved relative to `shell/widgets/`. Configuration is user-owned and shipped to every machine, so a name that could locate arbitrary code would turn a config file into a code-execution surface. An unknown name resolves to `null` and is skipped with a named log line, never fatal. There is no runtime plugin registry — the framework provides none on the installed version.
+- **The centre zone is placed against the bar's container and against nothing else.** `BarSurface` anchors each zone to one plain `Item`: left to `parent.left`, right to `parent.right`, centre with `anchors.centerIn: parent`. There is **no** `Row`, `RowLayout`, `Flow` or other positioner arranging the *zones* — those hand each child whatever width the others leave, which is the accidental-symmetry layout the rewrite is replacing (the pre-rewrite bar "centred" its clock in an overlay and only looked right because the two flanking rows happened to be the same width). Consequently `center.x == (barWidth - center.w) / 2` and nothing else changes it; `scripts/verify-bar-surface.sh` measures exactly that under deliberately lopsided wings, at two bar widths, and fails if any layout type reappears. A zone **sizes itself to its contents and never places itself** (`BarZone` exposes `implicitWidth`/`implicitHeight` only) — a zone that positioned itself would either move with its neighbours or be positioned relative to one.
+- **The bar's windows are not created until `BarConfig` has settled.** `Bar.qml` binds its `Variants` model to an empty list until `BarConfig.configured` is true. A layer-shell surface has its size negotiated once, when it maps, and the reader's verdict arrives after the first reference to it — so a bar created immediately maps with the built-in defaults and is never given a second size, which silently made `"floating": false` do nothing. `configured` is deliberately **not** derived from `BarConfig.note` (that is assigned before `floating` has been read, and QML delivers the change synchronously); it is `_settled`, set in `_report()` once the whole verdict is in hand. The failure policy is untouched — waiting on a verdict is not failing on one.
+- **`bar.floating` is one switch with one meaning, declared in one place.** True: the window takes `BarConfig.edgeMargin` as its margins (so the transparent gap beside a floating island is not clickable) and the plate takes `BarConfig.cornerRadius`. False: both are zero. The inset and the radius live in `BarConfig` beside the flag because two consumers need the same numbers and two copies of "8" is how a bar ends up with a rounded plate in a square-edged window. They are shell constants, not configuration keys — the schema stays minimal. The fill is always `UI.Colors.background`.
 - **Layer-shell surfaces set BOTH a layer and a namespace.** Every `PanelWindow` overlay surface assigns `WlrLayershell.layer` (its place in the layer stack) and a distinct `WlrLayershell.namespace`. This is load-bearing under the panel architecture: panel surfaces need distinct namespaces so per-monitor surfaces and the cross-monitor dismissal twins can be told apart. Framework `PopupWindow`s and plain `Item`s are not layer-shell surfaces and are exempt.
 - **Never call anything a "module".** The word is retired: it has meant three different things here and that is why the base class it names reached one widget out of twelve. Say *widget*, *service* or *component*. See the retired entry in `GLOSSARY.md`.
 - **Widget naming: the config `type` is kebab-case, the file is UpperCamelCase, and the QML type is that same name.** So `{"type": "system-tray"}` → `SystemTray.qml` → type `SystemTray`; one-word names stay one word (`tray` → `Tray.qml` → `Tray`). Words in a multi-word name are separated by `-` in configuration and nothing at all in the filename — no underscores, no `Module`/`Widget` suffix. Widgets all live in one flat directory, one file per widget, and a widget is added by writing that file and adding one entry to the **widget registry**: the name→file map held in the shell code, which is data rather than runtime discovery. Configuration never carries a file path. Read `GLOSSARY.md` for what a widget is before naming one. Existing pre-rewrite widget files do not follow this rule yet; they move onto it as their own tickets land.
@@ -41,9 +44,9 @@ pointing at whatever runtime directory the current config path hashes to. It is
 therefore **never** a real change: `git checkout -- .qmlls.ini` before every
 commit, and never stage it.
 
-Seven verification scripts live in `scripts/`. `verify-docs.sh` is the odd one
-out: the other five work by launching the shell and reading its log, because for
-QML the framework's only failure signal is the log.
+Eight verification scripts live in `scripts/`. `verify-docs.sh` is the odd one
+out: every other one works by launching the shell and reading its log, because
+for QML the framework's only failure signal is the log.
 
 - `scripts/verify-smoke.sh` launches `smoke.qml` under a private D-Bus session,
   instantiates every widget, service and shared component (per screen) and
@@ -85,6 +88,21 @@ QML the framework's only failure signal is the log.
   a malformed file as a whole falls back to defaults and is left byte-for-byte
   untouched; reorder/remove/add are configuration edits alone; and a widget that
   cannot be constructed is skipped without taking its zone with it.
+- `scripts/verify-bar-surface.sh` checks that the bar really is three zones with a
+  truly centred centre, and that floating/full-width is a configuration edit. It
+  asserts the layout's *shape* statically — the three zones are anchored to one
+  plain container and never to a `Row`/`RowLayout`/`Flow`, the centre zone's
+  placement never mentions either wing, the fill comes from `UI.Colors` and not a
+  literal, the window sets a layer and a namespace distinct from the pre-rewrite
+  bar's, and `shell.qml` composes the new bar rather than the old one. It then
+  launches `smoke.qml` against scratch `HOME` *and* `XDG_CONFIG_HOME` and
+  **measures** the centre zone: with deliberately lopsided wings it requires
+  `center.x == (barWidth - center.w) / 2`, at two bar widths, and it compares
+  two configurations against each other to require the centre not to move when
+  only the wings change. Finally it launches the real `shell.qml` twice — once
+  with no configuration file, once with `"floating": false` — and requires the
+  surface the compositor actually hands the bar to be exactly the two floating
+  insets wider in floating mode.
 
 What remains true from the old note: **the process itself still exits 0 even
 when every binding throws**, so a QML syntax or type error only surfaces at
