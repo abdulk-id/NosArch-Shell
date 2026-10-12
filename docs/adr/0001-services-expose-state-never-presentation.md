@@ -43,17 +43,17 @@ Presentation is still living in services. As of this record:
 | --- | --- |
 | `services/NetworkService.qml` | `textIcon`, plus a `wifiIcons` array indexed by signal strength |
 | `services/AudioService.qml` | `textIcon` on the output object and again on the input object |
-| `services/BluetoothService.qml` | `textIcon` covering adapter-enabled, discoverable and device-connected |
-| `services/SystemInfo.qml` | battery `textIcon`, plus `defaultIcons` and `chargingIcons` arrays |
 
-Thirteen call sites consume those glyphs today: seven under `shell/` (the
-volume, network, bluetooth and battery widgets, plus the volume OSD — volume
-and network each read theirs twice), three in `smoke.qml`, and three in the
-`testing/` service readout. Tickets 11 (audio), 12 (network) and 13 (bluetooth
-and battery) move them out, each onto the widget that draws them. Until those
-land, the table above is the truth: do not read this record as evidence that the
-services are presentation-free. `scripts/verify-docs.sh` fails if it ever claims
-otherwise.
+Ticket 13 moved battery and bluetooth presentation into `BatteryWidget` and
+`BluetoothWidget`; those services do not publish glyphs.
+
+Eight call sites consume the remaining glyphs today: five under `shell/` (the
+volume and network widgets, plus the volume OSD — volume and network each read
+theirs twice), two in `smoke.qml`, and one in the `testing/` service readout.
+Tickets 11 (audio) and 12 (network) move the rest out, each onto the widget
+that draws them. Until those land, the table above is the truth: do not read
+this record as evidence that the services are presentation-free.
+`scripts/verify-docs.sh` fails if it ever claims otherwise.
 
 ## Consequences
 

@@ -25,22 +25,4 @@ Singleton {
         }
         return false;
     }
-
-    readonly property string textIcon: {
-        if (defaultAdapter) {
-            if (defaultAdapter.enabled) {
-                if (hasDeviceConnected) {
-                    return "󰂱";
-                } else if (defaultAdapter.discoverable) {
-                    return "󰂳";
-                } else {
-                    return "";
-                }
-            } else {
-                return "󰂲";
-            }
-        } else {
-            return "󰂲";
-        }
-    }
 }

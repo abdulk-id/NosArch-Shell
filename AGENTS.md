@@ -51,7 +51,7 @@ pointing at whatever runtime directory the current config path hashes to. It is
 therefore **never** a real change: `git checkout -- .qmlls.ini` before every
 commit, and never stage it.
 
-Nine verification scripts live in `scripts/`. `verify-docs.sh` is the odd one
+Eleven verification scripts live in `scripts/`. `verify-docs.sh` is the odd one
 out: every other one works by launching the shell and reading its log, because
 for QML the framework's only failure signal is the log.
 
@@ -141,6 +141,11 @@ for QML the framework's only failure signal is the log.
   declare, cost only that key, and leave the widget built; and `{ "type":
   "clock" }` with no options at all — the format shipped by ticket 07 — must
   still work.
+- `scripts/verify-cpu-memory-battery-bluetooth-widgets.sh` checks the four
+  system-info widgets on the contract (CPU and memory open a system monitor on
+  click, battery charge with low-charge colouring, bluetooth adapter state),
+  that battery and bluetooth presentation no longer lives in services, and
+  that the legacy top-island modules delegate to the contract widgets.
 
 What remains true from the old note: **the process itself still exits 0 even
 when every binding throws**, so a QML syntax or type error only surfaces at

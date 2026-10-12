@@ -122,12 +122,6 @@ PanelWindow {
                 text: parent.row("Pending Charge", Services.SystemInfo.battery.pendingCharge)
             }
 
-            Text {
-                color: "white"
-                font.family: "JetbrainsMono Nerd Font"
-                text: parent.row("Icon", Services.SystemInfo.battery.textIcon)
-            }
-
             Rectangle {
                 width: parent.width
                 height: 1
@@ -163,8 +157,14 @@ PanelWindow {
 
             Text {
                 color: "white"
-                font.family: "JetbrainsMono Nerd Font"
-                text: parent.row("Bluetooth Icon", Services.BluetoothService.textIcon)
+                text: parent.row("Bluetooth adapter",
+                    Services.BluetoothService.defaultAdapter ? "present" : "absent")
+            }
+
+            Text {
+                color: "white"
+                text: parent.row("Bluetooth connected device",
+                    Services.BluetoothService.hasDeviceConnected)
             }
         }
     }

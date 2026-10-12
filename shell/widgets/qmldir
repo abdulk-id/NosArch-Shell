@@ -10,4 +10,8 @@
 BarWidget BarWidget.qml
 SimpleBarWidget SimpleBarWidget.qml
 ClockWidget ClockWidget.qml
+CpuWidget CpuWidget.qml
+MemoryWidget MemoryWidget.qml
+BatteryWidget BatteryWidget.qml
+BluetoothWidget BluetoothWidget.qml
 singleton WidgetRegistry 1.0 WidgetRegistry.qml
