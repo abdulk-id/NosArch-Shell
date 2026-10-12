@@ -138,18 +138,19 @@ Singleton {
 
     // THE BUILT-IN DEFAULTS, AND THE ONLY PLACE THEY ARE WRITTEN.
     //
-    // Only widgets that exist in the registry are named here: with the clock as
-    // the sole contract widget so far, the defaults place the clock in the
-    // centre and leave the wings empty. Each widget's own ticket adds its name
-    // in its natural place, and this stays the single source. Floating by
-    // default matches spec story 12.
+    // Only widgets that exist in the registry are named here. Each widget's own
+    // ticket adds its name in its natural place, and this stays the single
+    // source. Floating by default matches spec story 12.
     readonly property var defaultConfiguration: ({
         "bar": {
             "floating": true,
             "zones": {
-                "left": [],
+                "left": [
+                    { "type": "launcher" },
+                    { "type": "workspaces" }
+                ],
                 "center": [{ "type": "clock" }],
-                "right": []
+                "right": [{ "type": "tray" }]
             }
         }
     })
