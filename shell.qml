@@ -5,6 +5,7 @@ import QtQuick
 import Quickshell
 
 import "shell"
+import "shell/bar"
 import "shell/notifications"
 import "shell/osds"
 import "shell/topisland"
@@ -78,6 +79,21 @@ ShellRoot {
     // --------------------------------------------------------------------------
 
     Wallpaper {}
+
+    // The bar's contents come from the user's configuration file. Touching the
+    // BarConfig singleton here is what makes the real shell read it, validate
+    // it and apply its failure policy — so a bad configuration file is reported
+    // in the live shell's log, by name, rather than being a thing only the smoke
+    // test knows about.
+    //
+    // It is REFERENCED, not declared: a `pragma Singleton` type is not
+    // creatable, so `BarConfig {}` fails with "Composite Singleton Type
+    // BarConfig is not creatable" — the same trap as createObject() on one.
+    //
+    // This is the READER, not the bar. No surface, no zones, nothing drawn:
+    // arranging what it answers into three zones is ticket 08, and the
+    // hardcoded bar below stays until ticket 18 retires it.
+    readonly property var barConfiguration: BarConfig
 
     TopIsland {}
 

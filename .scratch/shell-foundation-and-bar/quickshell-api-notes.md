@@ -586,7 +586,34 @@ These three cost real time and are not in the numbered sections above.
    singleton that way reports a false failure. Construct singletons by
    *reference* (importing them), never by `createObject`.
 
+4. **`number` is not a QML type, and annotating a parameter with it logs an
+   ERROR.** The numeric QML types are `int`, `real` and `double`. A function
+   written `function f(index: number)` logs, per call:
+
+   ```
+   ERROR qs:@/<file>:<line>: 7 should be coerced to void because the function
+   called is insufficiently annotated. The original value is retained.
+   ```
+
+   This is not cosmetic. Ticket 18 requires the shell to start "with no errors
+   in the log", and this is an ERROR line naming a file in the repo, so it has
+   to go. Verified by probing one call per type: `string`, `int`, `real`,
+   `double`, `bool`, `var` and `Component` are all silent; **`number` is the
+   only one that fires**, and it fires for the argument's value whether the
+   return is used or discarded. Use `int` (or `real`).
+
+5. **A function's return type annotated `array` logs the same ERROR**, with the
+   returned value as the subject. `function names(): array` warns; the same
+   function annotated `: var` does not. Use `var`.
+
+6. **A composite singleton type is not creatable.** `BarConfig {}` inside
+   `ShellRoot` fails with `Composite Singleton Type BarConfig is not
+   creatable.` Referencing it (`readonly property var x: BarConfig`) is the
+   only way to construct it — the same trap as #3, in a different disguise.
+
 Also worth carrying forward: `verify-launch-reload.sh` copies `shell/`,
-`services/` and `components/` into its scratch config but **not** the repo
-root, so it will need `shell/widgets/` included once the bar composes
-contract widgets (tickets 07/08).
+`services/` and `components/` into its scratch config, so a new directory
+*under* `shell/` is picked up with no change to the script (confirmed: adding
+`shell/bar/` needed nothing). `verify-smoke.sh`'s plan-coverage check is a
+literal list of directories, so a new top-level QML directory DOES need a line
+added there or the plan stops covering it.

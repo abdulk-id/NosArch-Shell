@@ -1,0 +1,20 @@
+# shell/bar — the bar's own directory (ticket 07).
+#
+# Two types, split by what they answer:
+#
+#   BarConfig  the singleton. Where the user's configuration file is, what
+#              shape it has, which of its entries are usable, and the failure
+#              policy for the ones that are not. It loads nothing and draws
+#              nothing — it answers "what should the bar contain".
+#
+#   BarZone    one zone's contents, built from what BarConfig answered. It
+#              resolves no names and loads no files, so configuration cannot
+#              become code here either.
+#
+# Ticket 08 adds the bar itself here — the three zones arranged on a surface,
+# the true centring, and the floating/full-width toggle.
+#
+# A qmldir disables Quickshell's synthetic qmldir for its directory, so every
+# type here needs a line below (scripts/verify-bar-config.sh asserts this).
+singleton BarConfig 1.0 BarConfig.qml
+BarZone BarZone.qml
