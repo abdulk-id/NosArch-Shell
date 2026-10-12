@@ -5,11 +5,18 @@ import Quickshell.Networking
 
 import "../../ui" as UI
 import "../../../services" as Services
+import "../../../components" as Components
 
 Item {
     id: networkModule
 
-    required property QtObject popupState
+    // Typed, like the base widget's (ticket 10). This module is the one that
+    // used to call the popup state with ONE argument while the base widget
+    // called it with TWO, against a shared manager whose `isActive` answered
+    // "active on any screen" to the one-arg call — so this panel ignored its
+    // monitor entirely on a multi-monitor desktop. The state now takes no
+    // screen, so there is no arity to get wrong; see components/PopupState.qml.
+    required property Components.PopupState popupState
     property PanelWindow topIsland
 
     readonly property string popupId: "network"
@@ -45,13 +52,15 @@ Item {
         cursorShape: Qt.PointingHandCursor
 
         onClicked: {
-            networkModule.popupState.set(networkModule.popupId);
+            // One call, both directions, and no monitor in it: this panel is
+            // visible exactly when its own surface's state says so.
+            const wasOpen = networkModule.popupState.isActive(networkModule.popupId);
+            networkModule.popupState.toggle(networkModule.popupId);
 
-            if (networkModule.popupState.activePopup === networkModule.popupId) {
+            if (!wasOpen) {
                 networkModule.updatePopupPosition();
+                popup.anchor.updateAnchor();
             }
-
-            popup.anchor.updateAnchor();
         }
     }
     // ===
@@ -829,17 +838,21 @@ Item {
         onVisibleChanged: {
             if (visible) {
                 networkModule.triggerScan();
-            } else {
-                scanRefreshTimer.stop();
-                let device = Services.NetworkService.activeDevice;
-                if (device && device.type === DeviceType.Wifi) {
-                    device.scannerEnabled = false;
-                }
-                networkModule.popupState.close();
+                return;
             }
+            scanRefreshTimer.stop();
+            let device = Services.NetworkService.activeDevice;
+            if (device && device.type === DeviceType.Wifi) {
+                device.scannerEnabled = false;
+            }
+            // Nothing to clear. `visible` is DERIVED from this surface's
+            // active id, so being hidden means that id already stopped being
+            // "network" — either Escape, an outside click, or another widget
+            // taking this surface's one slot. Clearing it here would be
+            // clearing a slot another widget may already own.
         }
 
-        visible: networkModule.popupState && networkModule.popupState.isActive(networkModule.popupId)
+        visible: networkModule.popupState.isActive(networkModule.popupId)
     }
 
     function updatePopupPosition() {

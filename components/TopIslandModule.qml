@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 
+import "." as Components
 import "../shell/ui" as UI
 
 Item {
@@ -20,7 +21,19 @@ Item {
 
     // Popup support
     property bool hasPopup: false
-    property QtObject popupState
+    //
+    // The state is TYPED, and that is the point (ticket 10). The pre-rewrite
+    // property was an untyped `QtObject` holding a global manager whose
+    // `isActive(id, screen)` answered "active on any screen" to a caller that
+    // omitted the screen — and the network widget did omit it, so its panel
+    // ignored its monitor. There was no way for that to be loud.
+    //
+    // Here the property can only ever hold a per-surface state object, which
+    // takes no screen and therefore cannot be asked a question about one. See
+    // components/PopupState.qml for the whole argument; the short version is
+    // that "which monitor" is answered by which instance this widget holds,
+    // not by a string each widget has to get right.
+    property Components.PopupState popupState: null
     property PanelWindow topIsland
     property string popupId: ""
 
@@ -42,6 +55,14 @@ Item {
     implicitWidth: contentLoader.item ? contentLoader.item.implicitWidth : 0
     implicitHeight: contentLoader.item ? contentLoader.item.implicitHeight : 0
 
+    // Whether this widget can open a panel at all. One predicate for the
+    // click, the visibility and the dismissal, so the three cannot disagree
+    // about whether a panel is possible.
+    readonly property bool panelPossible: topIslandModule.hasPopup
+        && topIslandModule.popupState !== null
+        && topIslandModule.popupId !== ""
+        && topIslandModule.topIsland !== null
+
     // Mouse interaction
     MouseArea {
         id: mouseArea
@@ -55,17 +76,19 @@ Item {
             if (topIslandModule.clickable) {
                 topIslandModule.onClicked();
             }
-            if (topIslandModule.hasPopup && topIslandModule.popupState && topIslandModule.popupId && topIslandModule.topIsland) {
-                let screen = topIslandModule.topIsland.screen.name;
-                if (topIslandModule.popupState.isActive(topIslandModule.popupId, screen)) {
-                    topIslandModule.popupState.close();
-                } else {
-                    topIslandModule.popupState.set(topIslandModule.popupId, screen);
-                    topIslandModule.updatePopupPosition();
-                    if (popup) {
-                        popup.anchor.updateAnchor();
-                    }
-                }
+            if (!topIslandModule.panelPossible) {
+                return;
+            }
+            // One call, both directions. There is no screen to pass and so no
+            // way for two widgets to disagree about which monitor this is.
+            const wasOpen = topIslandModule.popupState.isActive(topIslandModule.popupId);
+            topIslandModule.popupState.toggle(topIslandModule.popupId);
+            if (wasOpen) {
+                return;                     // it just closed; nothing to place
+            }
+            topIslandModule.updatePopupPosition();
+            if (popup) {
+                popup.anchor.updateAnchor();
             }
         }
         onEntered: {
@@ -85,7 +108,10 @@ Item {
     // Popup Content
     PopupWindow {
         id: popup
-        visible: topIslandModule.hasPopup && topIslandModule.popupState && topIslandModule.topIsland && topIslandModule.popupState.isActive(topIslandModule.popupId, topIslandModule.topIsland.screen.name)
+        // The surface's own state decides this, so a panel is visible on the
+        // surface whose state says so and on no other.
+        visible: topIslandModule.panelPossible
+            && topIslandModule.popupState.isActive(topIslandModule.popupId)
         grabFocus: true
 
         implicitWidth: topIslandModule.popupWidth
@@ -97,11 +123,16 @@ Item {
         }
 
         onVisibleChanged: {
-            if (visible) {
-                popupContents.forceActiveFocus();
-            } else if (topIslandModule.popupState && topIslandModule.topIsland && topIslandModule.popupState.isActive(topIslandModule.popupId, topIslandModule.topIsland.screen.name)) {
-                topIslandModule.popupState.close();
+            if (!visible) {
+                // Nothing to clear on the way out. `visible` is DERIVED from
+                // the state's active id, so this window is hidden exactly when
+                // that id stopped being its own — either Escape, an outside
+                // click, or another widget taking this surface's one slot.
+                // Clearing the slot here would be clearing a slot another
+                // widget may already own.
+                return;
             }
+            popupContents.forceActiveFocus();
         }
 
         Rectangle {
@@ -110,7 +141,7 @@ Item {
 
             focus: true
             Keys.onPressed: {
-                if (event.key === Qt.Key_Escape) {
+                if (event.key === Qt.Key_Escape && topIslandModule.popupState !== null) {
                     topIslandModule.popupState.close();
                 }
             }

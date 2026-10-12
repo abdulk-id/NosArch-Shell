@@ -20,29 +20,28 @@ Scope {
     // ===
 
     // UI ===
-    QtObject {
-        id: popupStateManager
-
-        property string activePopup: ""
-        property string activeScreen: ""
-
-        function set(id, screen) {
-            activePopup = id;
-            activeScreen = screen === undefined ? "" : screen;
-        }
-        function close() {
-            activePopup = "";
-            activeScreen = "";
-        }
-        function isActive(id, screen) {
-            if (screen === undefined) {
-                return activePopup === id;
-            }
-            return activePopup === id && activeScreen === screen;
-        }
-    }
+    //
+    // NOTE ON POPUP STATE (ticket 10)
+    //
+    //   There used to be a `popupStateManager` QtObject HERE — one for the
+    //   whole shell, holding `activePopup` and `activeScreen`, handed to every
+    //   panel widget on every monitor. Its `isActive(id, screen)` answered
+    //   "active on any screen" to a caller that omitted the screen, and the
+    //   network widget omitted it while the volume widget supplied it — so on a
+    //   second monitor the network panel would have appeared on the monitor it
+    //   was not opened from. Invisible with one monitor; wrong with two.
+    //
+    //   The state now lives in a PopupState INSIDE each delegate below, which
+    //   is what makes it per-surface: the surface a widget lives in IS its
+    //   monitor, so no widget passes one or can omit one. See
+    //   components/PopupState.qml.
+    //
+    //   (This file is the pre-rewrite bar: ticket 08 took it out of shell.qml
+    //   and ticket 18 deletes it. smoke.qml still compiles it, so the
+    //   mechanism had to be fixed here rather than left to rot.)
 
     Variants {
+        id: topIslandWindows
         model: Quickshell.screens
 
         delegate: Component {
@@ -71,6 +70,14 @@ Scope {
                 }
 
                 color: "transparent"
+
+                // This surface's popup state, one per monitor. Opening a panel
+                // on one monitor cannot open, close or shadow one on another,
+                // and there is no monitor name anywhere for a widget to get
+                // wrong.
+                PopupState {
+                    id: popupState
+                }
 
                 Rectangle {
                     id: panelArea
@@ -142,12 +149,12 @@ Scope {
 
                         NetworkModule {
                             topIsland: topIslandPanel
-                            popupState: popupStateManager
+                            popupState: popupState
                         }
                         BluetoothModule {}
                         VolumeModule {
                             topIsland: topIslandPanel
-                            popupState: popupStateManager
+                            popupState: popupState
                         }
                         BatteryModule {}
                         NotificationModule {}

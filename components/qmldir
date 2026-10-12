@@ -1,3 +1,4 @@
 TopIslandModule TopIslandModule.qml
 Separator Separator.qml
 ProgressOSDItem ProgressOSDItem.qml
+PopupState PopupState.qml

@@ -62,8 +62,14 @@ python3 - "$REPO" <<'PY'
 import re, sys, pathlib
 repo = pathlib.Path(sys.argv[1])
 pat_surface = re.compile(r'\bPanelWindow\b\s*\{')
-pat_layer   = re.compile(r'\bWlrLayershell\.layer\b')
-pat_ns      = re.compile(r'\bWlrLayershell\.namespace\b')
+# Only an ASSIGNMENT counts. The convention is that a surface SETS a layer and
+# a namespace; reading `someWindow.WlrLayershell.namespace` back off a live
+# window is not setting one. Counting reads made this check fail on
+# shell/bar/Bar.qml, which reads each bar window's namespace to report it
+# (ticket 10) — that is the check measuring the wrong thing, not the bar being
+# wrong.
+pat_layer   = re.compile(r'\bWlrLayershell\.layer\s*:')
+pat_ns      = re.compile(r'\bWlrLayershell\.namespace\s*:')
 skip_dirs   = {'.git', '.scratch', '.agents', '.zed'}
 problems, seen = [], []
 for f in sorted(repo.rglob('*.qml')):
