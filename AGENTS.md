@@ -153,6 +153,10 @@ for QML the framework's only failure signal is the log.
   prints every promise it does **not** check — pointer-driven ones above all,
   since this machine has no pointer-injection tool — so a green run cannot imply
   more than it did.
+- `scripts/verify-network-widget-and-panel.sh` checks the network widget on the
+  contract with a panel on the overlay architecture, presentation moved out of
+  `NetworkService` into `NetworkIcon` / `NetworkWidget`, and volume↔network panel
+  switching in one click on a shared coordinator (read off smoke CONTRACT lines).
 - `scripts/verify-workspaces-tray-launcher-widgets.sh` checks that workspaces,
   tray and launcher widgets live on the contract in `shell/widgets/`, resolve
   through the registry as `workspaces`, `tray` and `launcher`, and still carry

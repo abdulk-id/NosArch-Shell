@@ -51,40 +51,6 @@ Singleton {
         return null;
     }
 
-    // Text icon
-    readonly property var wifiIcons: ["󰤯", "󰤟", "󰤢", "󰤥", "󰤨"]
-
-    readonly property string textIcon: {
-        let device = networkService.activeDevice;
-        if (device === null) {
-            if (Networking.connectivity === NetworkConnectivity.None) {
-                return "󰤮";
-            } else {
-                return "󰤫";
-            }
-        }
-
-        let connectivity = Networking.connectivity;
-        if (connectivity === NetworkConnectivity.Full) {
-            if (device.type === DeviceType.Wifi) {
-                let network = networkService.activeNetwork;
-                if (network) {
-                    let iconIndex = Math.min(Math.floor(network.signalStrength * 4), 4);
-                    return networkService.wifiIcons[iconIndex];
-                }
-            } else if (device.type === DeviceType.Wired) {
-                return "󰀂";
-            }
-        } else if (connectivity === NetworkConnectivity.Limited) {
-            return "󰤬";
-        } else if (connectivity === NetworkConnectivity.Portal) {
-            return "󰖟";
-        } else if (connectivity === NetworkConnectivity.None) {
-            return "󰤮";
-        }
-        return "󰤫";
-    }
-
     // IP Address
     property string ipAddress: ""
     Process {
@@ -111,16 +77,11 @@ Singleton {
         }
     }
 
-    // Traffic stats
+    // Traffic stats (raw bytes — formatting is presentation, in NetworkIcon)
     property real bytesReceived: 0
     property real bytesSent: 0
     property real rxSpeed: 0
     property real txSpeed: 0
-
-    property string rxSpeedText: formatSpeed(rxSpeed)
-    property string txSpeedText: formatSpeed(txSpeed)
-    property string totalReceivedText: formatBytes(bytesReceived)
-    property string totalSentText: formatBytes(bytesSent)
 
     onActiveInterfaceChanged: {
         _previousRx = 0;
@@ -130,29 +91,6 @@ Singleton {
         txSpeed = 0;
     }
 
-    function formatBytes(bytes) {
-        if (bytes < 1024) {
-            return bytes.toFixed(0) + " B";
-        } else if (bytes < 1024 * 1024) {
-            return (bytes / 1024).toFixed(1) + " KB";
-        } else if (bytes < 1024 * 1024 * 1024) {
-            return (bytes / 1024 / 1024).toFixed(1) + " MB";
-        } else {
-            return (bytes / 1024 / 1024 / 1024).toFixed(2) + " GB";
-        }
-    }
-
-    function formatSpeed(bytesPerSec) {
-        if (bytesPerSec < 1024) {
-            return bytesPerSec.toFixed(0) + " B/s";
-        } else if (bytesPerSec < 1024 * 1024) {
-            return (bytesPerSec / 1024).toFixed(1) + " KB/s";
-        } else {
-            return (bytesPerSec / 1024 / 1024).toFixed(1) + " MB/s";
-        }
-    }
-
-    // Traffic stats process
     property real _previousRx: 0
     property real _previousTx: 0
     property real _previousTimestamp: 0
@@ -173,10 +111,8 @@ Singleton {
                     return;
                 }
 
-                // Lines look like: "  wlan0: 12345 678 0 ... 98765 432 0 ..."
                 if (data.trim().startsWith(iface + ":")) {
                     let parts = data.trim().split(/\s+/);
-                    // parts[0] is "iface:", parts[1] is RX bytes, parts[9] is TX bytes
                     if (parts.length >= 10) {
                         let currentRx = parseFloat(parts[1]);
                         let currentTx = parseFloat(parts[9]);
@@ -201,7 +137,6 @@ Singleton {
         }
     }
 
-    // Update Timer
     Timer {
         interval: 2000
         running: true

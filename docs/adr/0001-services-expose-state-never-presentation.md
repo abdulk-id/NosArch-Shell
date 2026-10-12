@@ -1,6 +1,6 @@
 # Services expose state, never presentation
 
-Status: accepted. The decision is settled; the migration is in progress.
+Status: accepted. The decision is settled; the migration is complete.
 
 A service reports what is true about the machine and offers the actions that
 change it. It never decides what any of that looks like: a glyph, a colour, a
@@ -35,41 +35,33 @@ The rule that follows: a widget derives its own appearance from state properties
 and a service never imports the palette. No service imports `shell/ui` today,
 which is the mechanical test for the boundary — keep it that way.
 
-## Migration status: in progress
+## Migration status: complete
 
-Presentation is still living in services. As of this record:
+No service singleton publishes a display glyph or formatted throughput string
+any longer — the presentation properties are already removed from every
+service, and the migration is already complete. Ticket 13 moved battery and bluetooth presentation into
+`BatteryWidget` and `BluetoothWidget`; `BluetoothService` and `SystemInfo` do
+not publish glyphs.
 
-| Service | What it still publishes |
-| --- | --- |
-| `services/NetworkService.qml` | `textIcon`, plus a `wifiIcons` array indexed by signal strength |
+**Audio (ticket 11).** `AudioService` publishes no glyph: the output and input
+`textIcon` properties are gone, and its inputs — `volume`, `isMuted`,
+`deviceFormFactor`, `isBluetooth`, `defaultSink` — are all still published by
+name. The decision moved to `components/VolumeIcon.qml`, as a **shared
+component** rather than as a property on the volume widget, because three
+consumers draw volume (bar widget, volume OSD, and the pre-rewrite module
+ticket 18 deletes).
 
-Ticket 13 moved battery and bluetooth presentation into `BatteryWidget` and
-`BluetoothWidget`; `BluetoothService` and `SystemInfo` do not publish glyphs.
+**Network (ticket 12).** `NetworkService` publishes no `textIcon`, no
+`wifiIcons`, and no formatted speed strings: it reports `activeDevice`,
+`activeNetwork`, `ipAddress`, and raw `rxSpeed` / `txSpeed` / byte counters.
+The glyph, signal-strength icons, and formatted throughput live in
+`components/NetworkIcon.qml` and `shell/widgets/NetworkWidget.qml`. The
+pre-rewrite `NetworkModule` reads the shared icon component until ticket 18
+deletes it.
 
-Five call sites consume the remaining glyphs today: three under `shell/` (the
-network widget reads its glyph twice, once in the bar and once in its panel),
-one in `smoke.qml`, and one in the `testing/` service readout. Ticket 12
-(network) moves the rest out, onto the widget that draws it. Until that lands,
-the table above is the truth: do not read this record as evidence that the
-services are presentation-free. `scripts/verify-docs.sh` fails if it ever claims
-otherwise.
-
-**Audio is out of the service (ticket 11).** `AudioService` publishes no glyph:
-the output and input `textIcon` properties are gone, and its inputs —
-`volume`, `isMuted`, `deviceFormFactor`, `isBluetooth`, `defaultSink` — are all
-still published by name, so nothing a consumer needed was lost. The decision
-itself moved to `components/VolumeIcon.qml`, as a **shared component** rather
-than as a property on the new volume widget, because three consumers draw volume
-(bar widget, volume OSD, and the pre-rewrite module ticket 18 deletes) and three
-copies of a glyph table would drift the moment the theme changed — which is
-failure mode 4 above, reached by a different route. The widget then applies
-`UI.Colors` for the muted colour, since a service may not import the palette and
-a component that decides *appearance* should not either.
-
-This is the migration's worked example for the ticket still to come: remove the
-property, keep every input by name, and put the decision in something that draws.
-Until network has done the same, the table above is the truth about the
-services, and this record must not be read as saying they are presentation-free.
+Do not read this record as permission to put presentation back in a service.
+`scripts/verify-docs.sh` fails if any service file declares a `textIcon`
+property again.
 
 ## Consequences
 

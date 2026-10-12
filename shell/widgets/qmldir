@@ -11,6 +11,7 @@ BarWidget BarWidget.qml
 SimpleBarWidget SimpleBarWidget.qml
 ClockWidget ClockWidget.qml
 VolumeWidget VolumeWidget.qml
+NetworkWidget NetworkWidget.qml
 CpuWidget CpuWidget.qml
 MemoryWidget MemoryWidget.qml
 BatteryWidget BatteryWidget.qml
