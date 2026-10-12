@@ -163,6 +163,49 @@ Singleton {
     property int _skipped: 0
     property var _loaded: false
 
+    // ---------------------------------------------------- floating geometry
+    //
+    // What `floating` MEANS, declared beside the flag it comes from.
+    //
+    // Two separate objects need these numbers: the window, which takes them as
+    // its margins, and the plate, which takes them as its corner radius. If
+    // each held its own copy they could disagree, and a bar whose window insets
+    // by 8 while its plate insets by 5 is visibly wrong in a way neither file's
+    // own checks would catch. One answer, read from both — that is the whole
+    // reason these live here rather than beside either consumer.
+    //
+    // These are SHELL constants, not configuration. The schema stays minimal:
+    // `floating` is the one switch, and a user who wants a different inset gets
+    // it by editing two numbers in one place, not by a key that would have to
+    // be validated, defaulted and documented on every target machine.
+    property int floatingMargin: 8
+    property int floatingRadius: 10
+
+    // The derived answers, so neither consumer has to restate the branch.
+    readonly property int edgeMargin: barConfig.floating ? barConfig.floatingMargin : 0
+    readonly property int cornerRadius: barConfig.floating ? barConfig.floatingRadius : 0
+
+    // Whether the verdict has been reached at all — and, more usefully, whether
+    // it has been reached COMPLETELY. This exists for the BAR, not for a log
+    // reader.
+    //
+    // It must NOT be derived from `note`. `note` is assigned early in each
+    // outcome path — before `floating` has been read out of the file, in fact
+    // before most of the verdict is known — and QML delivers a property change
+    // to a binding synchronously. Gating the bar's window on `note` therefore
+    // created it at the exact moment the reader said "none", which is one
+    // statement before the reader had read `floating`: the window mapped with
+    // the built-in default's margins, a layer-shell surface is not given a
+    // second size, and `"floating": false` in the user's file silently did
+    // nothing. That is what `_settled` is for, and it is set in `_report()`,
+    // which `_setEntries` calls once the whole verdict is in hand.
+    //
+    // A layer-shell surface has its size negotiated once, when it maps, so
+    // waiting is what makes the bar come up the width the user actually asked
+    // for. See Bar.qml.
+    property bool _settled: false
+    readonly property bool configured: barConfig._settled
+
     readonly property int skippedCount: barConfig._skipped
     readonly property int entryCount: barConfig._entries.length
 
@@ -441,6 +484,12 @@ Singleton {
     // ------------------------------------------------------------- reporting
 
     function _report(): void {
+        // The verdict is complete from here on — `floating`, the entries and the
+        // skip count are all in hand. Anything waiting on the whole answer (the
+        // bar's window, which can only be sized once) is released at this point
+        // and not one statement earlier; see `configured` above.
+        barConfig._settled = true
+
         let entries = 0
         for (let z = 0; z < barConfig.zoneNames.length; z++) {
             const zone = barConfig.zoneNames[z]

@@ -275,6 +275,30 @@ Item {
             name: "BarZone.qml",
             path: "shell/bar/BarZone.qml",
             props: { zoneName: "center" }
+        },
+        {
+            // The bar's layout: three zones, one plate, no window. Given a real
+            // width so it lays out like a bar would, and a name so its own
+            // report is attributable. This entry proves the surface constructs
+            // and that its zones populate — its GEOMETRY is measured by
+            // probeBarSurface below, which creates its surfaces once the
+            // configuration has settled.
+            name: "BarSurface.qml",
+            path: "shell/bar/BarSurface.qml",
+            props: { surfaceId: "smoke", width: 900, height: 35 }
+        },
+        {
+            // The window-owning type. LOADED, not instantiated: it creates a
+            // layer-shell surface per screen, and this entrypoint's one
+            // promise is that it draws nothing at all — the live bar is
+            // waybar's, and this run must not put a second one on screen.
+            // Loading it still compiles it and resolves every type it names,
+            // so a type error inside it fails here. scripts/verify-bar-surface.sh
+            // launches the real shell to prove the surface actually maps.
+            name: "Bar.qml",
+            path: "shell/bar/Bar.qml",
+            props: {},
+            loadOnly: true
         }
     ]
 
@@ -542,8 +566,64 @@ Item {
             (allBuilt ? parts.join(" ") : "UNKNOWN (a zone would not construct)"))
     }
 
-    function probeConstructFailure(): void {
-        const zoneComp = Qt.createComponent("shell/bar/BarZone.qml")
+    // ------------------------------------------------- bar layout probe
+    //
+    // The bar's geometry (ticket 08), measured on live instances at known
+    // widths and printed by the bar itself. scripts/verify-bar-surface.sh reads
+    // these numbers and asserts that the centre zone's position is
+    // (barWidth - centerWidth) / 2 under deliberately lopsided wings — which is
+    // the only falsifiable form of "the clock does not shift when other widgets
+    // change size".
+    //
+    // Two widths, not one: the promise is about the bar's width being the only
+    // input, so a claim checked at a single width is weaker than it looks. The
+    // narrow one is narrower than the left zone can be, which is the case the
+    // layout header promises to resolve by overlapping the centre rather than by
+    // moving it.
+    //
+    // WHY THE MEASUREMENT HAPPENS HERE AND NOT AT INSTANTIATION
+    //
+    //   A surface created before the configuration reader has settled builds its
+    //   zones a moment later, and a plain Item outside any window does not
+    //   re-run the polish that turns a Row's children into a width. The plan
+    //   entry above is exactly that case: it proves the surface constructs and
+    //   its zones populate, and its numbers are not trustworthy. Created here,
+    //   once everything has settled, the same objects measure correctly — and
+    //   they measure correctly in the real shell too, where the window means a
+    //   polish always follows.
+
+    // `label`, not `id`: `id` is a reserved word in QML and does not survive
+    // being used as a plain key in an object literal.
+    readonly property var barProbeWidths: [
+        { label: "probe", width: 1000 },
+        { label: "probe-narrow", width: 420 }
+    ]
+
+    function probeBarSurface(): void {
+        const comp = Qt.createComponent("shell/bar/BarSurface.qml")
+        if (comp.status !== Component.Ready) {
+            console.info("nosarch-shell ▸ BAR probe surface UNKNOWN (bar surface failed to load)")
+            return
+        }
+        for (const spec of smokeRoot.barProbeWidths) {
+            const surface = comp.createObject(smokeRoot, {
+                surfaceId: spec.label,
+                width: spec.width,
+                height: 35
+            })
+            if (surface === null) {
+                console.info("nosarch-shell ▸ BAR probe " + spec.label +
+                    " UNKNOWN (bar surface would not construct)")
+                continue
+            }
+            // The surface reports itself; asking now that everything has settled
+            // gets the settled numbers. Its own deduplication means a repeat of
+            // an unchanged state prints nothing.
+            surface.report()
+        }
+    }
+
+    function probeConstructFailure(): void {        const zoneComp = Qt.createComponent("shell/bar/BarZone.qml")
         if (zoneComp.status !== Component.Ready) {
             console.info("nosarch-shell ▸ CONFIG probe construct constructed=UNKNOWN");
             return
@@ -679,7 +759,8 @@ Item {
                 w.singleton === true, w.probe);
         }
         for (const c of smokeRoot.configPlan) {
-            smokeRoot.instantiateOne("config", c.name, c.path, c.props, host, screen, c.singleton === true, c.probe);
+            smokeRoot.instantiateOne("config", c.name, c.path, c.props, host, screen,
+                c.singleton === true, c.probe, c.loadOnly === true);
         }
         for (const c of smokeRoot.componentPlan) {
             smokeRoot.instantiateOne("component", c.name, c.path, c.props, host, screen);
@@ -689,8 +770,8 @@ Item {
     // `singleton` and `probe` are deliberately untyped: a typed `string`
     // parameter coerces an omitted argument to the literal text "undefined",
     // and then the code calls a function by that name — which fails silently
-    // and for the wrong reason.
-    function instantiateOne(kind: string, name: string, path: string, props: var, host: Item, screen: string, singleton, probe): void {
+    // and for the wrong reason. `loadOnly` likewise.
+    function instantiateOne(kind: string, name: string, path: string, props: var, host: Item, screen: string, singleton, probe, loadOnly): void {
         // A `pragma Singleton` type is constructed by REFERENCING it, not by
         // createObject — createObject on one returns null and would report a
         // false failure. Referencing the imported namespace is both the correct
@@ -713,6 +794,14 @@ Item {
         }
         if (comp.status !== Component.Ready) {
             smokeRoot.mark(kind, name, false, "component not ready (status " + comp.status + ")");
+            return;
+        }
+        // Compiled and every type it names resolved, but deliberately not
+        // created: this entrypoint draws no layer-shell surfaces.
+        if (loadOnly === true) {
+            smokeRoot.mark(kind, name, true,
+                "loaded and type-checked, not instantiated — it owns surfaces and this "
+                + "entrypoint draws none");
             return;
         }
         const obj = comp.createObject(host !== null ? host : smokeRoot, props || {});
@@ -747,6 +836,9 @@ Item {
         smokeRoot.probeZones();
         smokeRoot.probeConstructFailure();
         smokeRoot.probeConfigReader();
+
+        // The bar's layout (ticket 08): the zones' real geometry, measured.
+        smokeRoot.probeBarSurface();
 
         // Services: create each singleton (via the qmldir registration) and
         // read the leaves the shell consumes.

@@ -13,15 +13,22 @@ import "." as Bar
 //
 // WHAT THIS IS DELIBERATELY NOT
 //
-//   The bar itself. The three-zone arrangement, the true centring of the
-//   centre zone, the floating rounded island, the full-width background and the
-//   surfaces themselves are ticket 08. This type hands it three populated zones
-//   and stays out of the way.
+//   The bar itself, and — since ticket 08 — the bar's layout. The
+//   three-zone arrangement, the true centring of the centre zone, the floating
+//   rounded island, the full-width background and the surfaces themselves are
+//   BarSurface and Bar. This type hands it three populated zones and stays out
+//   of the way.
 //
-//   The Row below is the least that makes "these entries, in this order" an
-//   observable thing at all — a zone whose widgets are built but piled at one
-//   position cannot show that a reorder took effect. It is not the bar's
-//   layout, and ticket 08 is expected to replace it.
+//   It sizes itself to those zones' contents and NOTHING more. It does not
+//   decide where it goes, and that division is load-bearing rather than tidy:
+//   a zone that placed itself would either be positioned relative to the bar's
+//   centre (and so move when its neighbours changed width) or relative to its
+//   neighbours (which is the accidental-symmetry layout this ticket replaces).
+//   Placement belongs to the one thing that knows the bar's full width, and
+//   scripts/verify-bar-surface.sh measures the result.
+//
+//   The Row below is therefore a pure CONTENTS row — a zone whose widgets were
+//   built but piled at one position could not show that a reorder took effect.
 //
 // WHY CONSTRUCTION IS IMPERATIVE AND NOT A LOADER
 //
@@ -46,13 +53,22 @@ Item {
 
     property int spacing: 20
 
+    // Sized by what it holds, so whoever places the zone can place it without
+    // asking. An Item's width and height are bound to these by default, so
+    // anchoring this to an edge is enough — nothing has to be told the size.
+    // An empty zone measures zero and simply occupies no space, which is what
+    // makes "remove a widget by deleting one configuration line" work without
+    // leaving a hole behind.
+    implicitWidth: row.implicitWidth
+    implicitHeight: row.implicitHeight
+    readonly property bool isEmpty: zone.builtCount === 0
+
     // The widgets actually built, in order. Tracked here rather than counted
     // off row.children, because destroy() is deferred and the count would
     // briefly disagree with what is on screen after a configuration edit.
     property var _built: []
     readonly property var built: zone._built
     readonly property int builtCount: zone._built.length
-
     Row {
         id: row
         spacing: zone.spacing
@@ -97,13 +113,35 @@ Item {
     // (Re)build the zone from the current configuration. Runs at startup and
     // again whenever the entries change, which is what makes editing the file
     // update the bar without restarting the shell.
+    //
+    // Two things here are not obvious and both were found by measuring the bar
+    // rather than by reading it:
+    //
+    //   * destroy() is DEFERRED. A widget on its way out stays in row.children
+    //     until the end of the frame, and a Row sizes itself off its children —
+    //     so a rebuilt zone is briefly as wide as the old widgets AND the new
+    //     ones, and the zone next to it visibly jumps. Taking each dying widget
+    //     out of the row before destroying it removes it from the measurement
+    //     immediately, which is the whole reason `parent` is assigned here.
+    //   * the entries arrive, and then they change again. The reader settles its
+    //     verdict after this object is constructed, so `entriesChanged` fires
+    //     once after startup with the same list the completed handler already
+    //     built. Rebuilding on that would construct every widget twice for
+    //     nothing, so the signature is compared first.
     function rebuild(): void {
+        const entries = zone.entries
+        const signature = zone._signatureOf(entries)
+        if (signature === zone._signature) {
+            return                      // nothing changed; do not rebuild for it
+        }
+        zone._signature = signature
         const old = row.children
         for (let i = 0; i < old.length; i++) {
+            // Out of the row first, then destroyed: see above.
+            old[i].parent = null
             old[i].destroy()
         }
         const built = []
-        const entries = zone.entries
         for (let i = 0; i < entries.length; i++) {
             const entry = entries[i]
             const widget = zone.construct(entry, row, Bar.BarConfig.componentFor(entry.type))
@@ -112,6 +150,19 @@ Item {
             }
         }
         zone._built = built
+    }
+
+    // What is currently built, as one comparable string. Compared rather than
+    // deep-compared because it only has to notice a change, not describe one:
+    // the widget name, in the widget's own order, is the whole of it.
+    property string _signature: "\u0000never-built"
+
+    function _signatureOf(entries: var): string {
+        const parts = []
+        for (let i = 0; i < entries.length; i++) {
+            parts.push(entries[i].type)
+        }
+        return zone.zoneName + ":" + parts.join(",")
     }
 
     Component.onCompleted: zone.rebuild()
