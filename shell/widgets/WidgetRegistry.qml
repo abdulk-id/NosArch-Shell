@@ -48,7 +48,7 @@ Singleton {
     })
 
     // Every registered name, sorted — for logging and for the smoke readout.
-    function names(): array {
+    function names(): var {
         return Object.keys(registry.entries).sort()
     }
 

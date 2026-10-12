@@ -58,6 +58,11 @@ import "shell/ui" as UI
 // singleton constructs it, so a registry that cannot load fails the smoke run.
 import "shell/widgets" as Widgets
 
+// The bar's configuration reader and one zone (see shell/bar/qmldir, ticket 07).
+// Referencing BarConfig here constructs it, which is what makes the file
+// reader and its failure policy part of every smoke run.
+import "shell/bar" as Bar
+
 Item {
     id: smokeRoot
 
@@ -228,8 +233,10 @@ Item {
             path: "shell/widgets/WidgetRegistry.qml",
             props: {},
             // A singleton cannot be instantiated with createObject; referencing
-            // it constructs it. Resolved by name in instantiateOne below.
-            singleton: true
+            // it constructs it, and is also where the registry's own promises
+            // are asked about rather than assumed.
+            singleton: true,
+            probe: "probeWidgetRegistry"
         },
         { name: "ClockWidget.qml", path: "shell/widgets/ClockWidget.qml", props: {} }
     ]
@@ -241,6 +248,35 @@ Item {
             font.pixelSize: 12
         }
     }
+
+    // ------------------------------------------------------- bar contents
+    //
+    // The configuration reader and one zone (ticket 07). They are planned like
+    // everything else so a reader or zone that stops loading fails the smoke
+    // run rather than quietly producing an empty bar.
+    //
+    // The zone is instantiated for "center" rather than an empty wing, because
+    // the built-in defaults put the clock there: a plan entry that built zero
+    // widgets would pass whether or not the zone works.
+
+    readonly property var configPlan: [
+        {
+            name: "BarConfig.qml",
+            path: "shell/bar/BarConfig.qml",
+            props: {},
+            // A singleton cannot be instantiated with createObject; referencing
+            // it constructs it, which is what puts the file reader and its
+            // failure policy into every smoke run. It has no plan-time probe:
+            // the reader's verdicts land when the file is read, which is after
+            // instantiation, so its promises are asked about at the end instead.
+            singleton: true
+        },
+        {
+            name: "BarZone.qml",
+            path: "shell/bar/BarZone.qml",
+            props: { zoneName: "center" }
+        }
+    ]
 
     // ------------------------------------------------------------------ widgets
     //
@@ -404,6 +440,131 @@ Item {
         w.destroy();
     }
 
+    // ------------------------------------------- bar configuration probes
+    //
+    // The configuration reader's promises (ticket 07) are read off the real
+    // singleton and off real zone instances rather than asserted in a comment:
+    //
+    //   reader     where the file is: absolute, overridable, and not inside
+    //              this repository — which is what "not resolved relative to the
+    //              QML source" would look like if it were. Plus: the built-in
+    //              defaults name only widgets the registry actually holds.
+    //   validate   every rejection the schema makes, driven through the
+    //              reader's pure validator with shapes no real file needs to
+    //              contain (a bare string, an object with no type, an unknown
+    //              name, an entry carrying `path`, an entry carrying `file`).
+    //   zones-rendered  live widgets really were built, one per entry.
+    //   construct  a widget that cannot be built is skipped and named, and the
+    //              zone keeps everything it had.
+    //
+    // The two probes below use distinct synthetic zone names ("invalid" and
+    // "probe") so a skip line from one can never be mistaken for a skip line
+    // from the other, or for a real configuration entry.
+
+    // Runs at the end, after the reader has settled on its verdict: the reader is
+    // asked about itself once everything has loaded, so what it reports is the
+    // settled answer rather than the pre-load default.
+    function probeConfigReader(): void {
+        const cfg = Bar.BarConfig
+
+        const p = cfg.configFile
+        const absolute = p.startsWith("/")
+        const outsideRepo = !p.startsWith(Quickshell.shellDir)
+        console.info("nosarch-shell ▸ CONFIG probe reader path=" + p +
+            " absolute=" + absolute +
+            " outside-repo=" + outsideRepo +
+            " source=" + cfg.source +
+            " note=" + cfg.note +
+            " floating=" + cfg.floating +
+            " entries=" + cfg.entryCount +
+            " skipped=" + cfg.skippedCount)
+
+        // The built-in defaults must only ever name widgets that exist, or the
+        // defaults would themselves be a configuration error.
+        const unknown = []
+        const defaultZones = cfg.defaultConfiguration["bar"]["zones"]
+        for (const zone of ["left", "center", "right"]) {
+            for (const entry of defaultZones[zone]) {
+                if (!Widgets.WidgetRegistry.isKnown(entry.type)) {
+                    unknown.push(zone + ":" + entry.type)
+                }
+            }
+        }
+        console.info("nosarch-shell ▸ CONFIG probe defaults unknown-widgets=" +
+            (unknown.length === 0 ? "none" : unknown.join(",")))
+
+        // The validator, driven with shapes no real file needs to contain.
+        const hostile = {
+            invalid: [
+                "clock",                       // a bare name string
+                42,                            // not even a string
+                null,                          // absent
+                {},                            // no type
+                { type: "" },                  // empty type
+                { type: "definitely-not-a-widget" },
+                { type: "clock", path: "/etc/passwd" },
+                { type: "clock", file: "SomeWidget.qml" },
+                { type: "clock" }              // the one that must survive
+            ]
+        }
+        // entriesFrom is the public validator; calling it here also resets the
+        // reader's own counters, so they are put back afterwards. This runs
+        // after the verdict has already been logged, so nothing reported
+        // earlier changes.
+        const keptSkipped = cfg.skippedCount
+        const keptEntries = cfg.entriesFor("left").length
+        const kept = cfg.entriesFrom(hostile, ["invalid"])
+        const survivor = kept.length === 1 && kept[0].type === "clock"
+            && kept[0].zone === "invalid" && kept[0].index === 8
+        console.info("nosarch-shell ▸ CONFIG probe validate offered=9 kept=" + kept.length +
+            " rejected=" + cfg.skippedCount +
+            " survived-the-one-valid-entry=" + survivor)
+        cfg._skipped = keptSkipped
+    }
+
+    function probeZones(): void {
+        const comp = Qt.createComponent("shell/bar/BarZone.qml")
+        if (comp.status !== Component.Ready) {
+            console.info("nosarch-shell ▸ CONFIG probe zones-rendered UNKNOWN (zone failed to load)");
+            return
+        }
+        const parts = []
+        let allBuilt = true
+        for (const name of ["left", "center", "right"]) {
+            const z = comp.createObject(smokeRoot, { zoneName: name })
+            if (z === null) {
+                allBuilt = false
+                break
+            }
+            parts.push(name + "=" + z.builtCount)
+        }
+        console.info("nosarch-shell ▸ CONFIG probe zones-rendered " +
+            (allBuilt ? parts.join(" ") : "UNKNOWN (a zone would not construct)"))
+    }
+
+    function probeConstructFailure(): void {
+        const zoneComp = Qt.createComponent("shell/bar/BarZone.qml")
+        if (zoneComp.status !== Component.Ready) {
+            console.info("nosarch-shell ▸ CONFIG probe construct constructed=UNKNOWN");
+            return
+        }
+        const z = zoneComp.createObject(smokeRoot, { zoneName: "center" })
+        if (z === null) {
+            console.info("nosarch-shell ▸ CONFIG probe construct constructed=UNKNOWN");
+            return
+        }
+        // The failure validation cannot predict: the widget's file loads and its
+        // name resolves, but the object will not construct. BarWidget is
+        // required to supply `content`, `activate` and `tooltip`, so creating it
+        // with none of them is that case for real.
+        const unbuildable = Qt.createComponent("shell/widgets/BarWidget.qml")
+        const entry = { zone: "probe", index: 0, type: "probe-unconstructible" }
+        const got = z.construct(entry, smokeRoot, unbuildable)
+        console.info("nosarch-shell ▸ CONFIG probe construct entry=probe-unconstructible" +
+            " constructed=" + (got === null ? "no" : "yes-unexpectedly") +
+            " zone-rendered=" + z.builtCount);
+    }
+
     // ------------------------------------------------------------- life cycle
 
     Component.onCompleted: {
@@ -429,6 +590,9 @@ Item {
         }
         for (const w of smokeRoot.contractWidgetPlan) {
             smokeRoot.plan("widget", w.name);
+        }
+        for (const c of smokeRoot.configPlan) {
+            smokeRoot.plan("config", c.name);
         }
         for (const c of smokeRoot.componentPlan) {
             smokeRoot.plan("component", c.name);
@@ -511,24 +675,34 @@ Item {
             smokeRoot.instantiateOne("widget", w.name, w.path, w.props, host, screen);
         }
         for (const w of smokeRoot.contractWidgetPlan) {
-            smokeRoot.instantiateOne("widget", w.name, w.path, w.props, host, screen, w.singleton === true);
+            smokeRoot.instantiateOne("widget", w.name, w.path, w.props, host, screen,
+                w.singleton === true, w.probe);
+        }
+        for (const c of smokeRoot.configPlan) {
+            smokeRoot.instantiateOne("config", c.name, c.path, c.props, host, screen, c.singleton === true, c.probe);
         }
         for (const c of smokeRoot.componentPlan) {
             smokeRoot.instantiateOne("component", c.name, c.path, c.props, host, screen);
         }
     }
 
-    function instantiateOne(kind: string, name: string, path: string, props: var, host: Item, screen: string, singleton: bool): void {
+    // `singleton` and `probe` are deliberately untyped: a typed `string`
+    // parameter coerces an omitted argument to the literal text "undefined",
+    // and then the code calls a function by that name — which fails silently
+    // and for the wrong reason.
+    function instantiateOne(kind: string, name: string, path: string, props: var, host: Item, screen: string, singleton, probe): void {
         // A `pragma Singleton` type is constructed by REFERENCING it, not by
         // createObject — createObject on one returns null and would report a
         // false failure. Referencing the imported namespace is both the correct
         // construction and the proof that the registry loads.
         if (singleton === true) {
             try {
-                smokeRoot.probeWidgetRegistry();
-                smokeRoot.mark(kind, name, true, "singleton constructed and every name resolved");
+                if (probe !== undefined && probe !== null && probe !== "") {
+                    smokeRoot[probe]();
+                }
+                smokeRoot.mark(kind, name, true, "singleton constructed by reference");
             } catch (e) {
-                smokeRoot.mark(kind, name, false, "registry probe threw " + e);
+                smokeRoot.mark(kind, name, false, "probe threw " + e);
             }
             return;
         }
@@ -565,6 +739,14 @@ Item {
         // settled, so a value reported here is the settled value.
         smokeRoot.probeClockPanel();
         smokeRoot.probeBaseHover();
+
+        // The bar's contents (ticket 07): the reader's verdict has already been
+        // logged by the singleton itself, so what is added here is that live
+        // zone instances were really built from it, and that a widget which
+        // cannot be built is skipped rather than fatal.
+        smokeRoot.probeZones();
+        smokeRoot.probeConstructFailure();
+        smokeRoot.probeConfigReader();
 
         // Services: create each singleton (via the qmldir registration) and
         // read the leaves the shell consumes.

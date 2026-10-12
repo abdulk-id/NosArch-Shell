@@ -110,6 +110,11 @@ sources = (
     # own qmldir, and are planned in their own plan block. They are widgets
     # like any other, so they get the same both-directions coverage.
     ("shell/widgets/qmldir", set(qmldir_names('shell/widgets/qmldir')), planned('contractWidgetPlan')),
+    # The bar's own directory (ticket 07): the configuration reader and one
+    # zone. Same rule — a type that exists but is never instantiated is a
+    # silent gap, and a plan entry with no type is a test that stopped testing
+    # anything.
+    ("shell/bar/qmldir", set(qmldir_names('shell/bar/qmldir')), planned('configPlan')),
     ("components/qmldir", set(qmldir_names('components/qmldir')), planned('componentPlan')),
 )
 
@@ -186,7 +191,7 @@ for ln in lines:
         failed.append((kind, name, ' '.join(t[3:])))
 
 rc = 0
-for kind in ("service", "widget", "component"):
+for kind in ("service", "widget", "component", "config"):
     names = [n for k, n in plan if k == kind]
     if not names:
         continue
