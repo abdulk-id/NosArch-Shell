@@ -1,6 +1,8 @@
 import QtQuick
 import QtQuick.Controls
 
+import "../panels" as Panels
+
 // BarWidget — THE widget contract (ticket 06).
 //
 // Every bar widget extends this (directly, or through SimpleBarWidget) and
@@ -17,6 +19,14 @@ import QtQuick.Controls
 //                                supply an empty one. `hasPanel` is how the
 //                                rest of the shell tells those apart, so a
 //                                widget never has to pretend.
+//     panelCoordinator PanelCoordinator
+//                                defaults to null, and is on the CONTRACT for
+//                                the same reason `panelContent` is: the widget
+//                                needs a way to ASK for its panel, and a widget
+//                                that has no panel must not have to invent a
+//                                no-op to satisfy the type. BarZone assigns the
+//                                surface's coordinator to a widget that declares
+//                                a panel, and to no other — see BarZone.qml.
 //     options        var         defaults to {} — the settings carried by this
 //                                widget's configuration entry, handed over at
 //                                construction. Assigned by BarZone, read with
@@ -50,6 +60,67 @@ Item {
     // null, not an empty Component. A widget with no panel leaves this alone.
     property Component panelContent: null
     readonly property bool hasPanel: widget.panelContent !== null
+
+    // How this widget ASKS for its panel (ticket 11).
+    //
+    // A widget does not open a panel itself: it holds the coordinator for its
+    // own surface and calls `toggle(panelId, widget)` on it. That one call is
+    // both directions — open, and close-if-already-open — because a widget that
+    // opened its panel and was then told it was somehow not open is the failure
+    // the two-call version invites.
+    //
+    // It is here, on the contract, rather than in each panel-bearing widget for
+    // the same reason the hover affordance is: the rule for "how do I ask" has
+    // to be the same for every widget, or twelve widgets will answer it twelve
+    // ways. A widget with no panel never calls it and never sees a coordinator.
+    property Panels.PanelCoordinator panelCoordinator: null
+
+    // The convenience the contract owns, so no widget has to write the same
+    // null-check twice: open my panel if it is shut, close it if it is open.
+    // Returns whether a panel is now open on this surface, which is what the
+    // caller usually wants to know anyway.
+    function togglePanel(panelId: string): bool {
+        if (widget.panelCoordinator === null || widget.panelId === "") {
+            return false
+        }
+        widget.panelCoordinator.toggle(widget.panelId, widget)
+        return widget.panelCoordinator.hasOpenPanel
+    }
+
+    // The id this widget's panel is known by on its surface's coordinator.
+    //
+    // It lives on the contract, beside `togglePanel`, because the two are one
+    // mechanism: a widget that declares `panelContent` also declares the name it
+    // is opened under, and a widget that declares neither declares neither. A
+    // panel with no id could not be opened, so there is no default that would be
+    // better than "" — an empty id means "this widget has no panel", which is
+    // what a widget with no `panelContent` already says for itself.
+    //
+    // The id is per-surface state, not a global registry: two monitors can have
+    // their own volume panel open at the same time, and neither knows the
+    // other's exists.
+    // A widget's own name, used to build its default panel id.
+    //
+    // NOT `readonly`, and that is load-bearing rather than untidy. A derived QML
+    // type cannot re-declare a base `readonly` property — the derived value is
+    // silently ignored, so the widget appears to have named itself and every id
+    // in the shell comes out empty (verified: a `readonly` `widgetName` on a
+    // derived widget left `panelId` as "panel-"). It is declared plain so a
+    // widget may ASSIGN it, which is the only override form QML allows. Read-only
+    // reporting then lives on `panelId`, a different name. The same trap and the
+    // same fix as `optionDefaults`; see the note there.
+    property string widgetName: ""
+
+    // The id this widget's panel is known by on its surface's coordinator.
+    //
+    // The id is per-surface state, not a global registry: two monitors can each
+    // have their own volume panel open at once, and neither knows the other
+    // exists. An empty id means "this widget has no panel", which is what a
+    // widget with no `panelContent` already says for itself — so there is no
+    // default here that would be better than "".
+    readonly property string panelId: widget.hasPanel
+        ? "panel-" + widget.widgetName
+        : ""
 
     // ---- the contract: per-widget options (ticket 09) -----------------------
     //

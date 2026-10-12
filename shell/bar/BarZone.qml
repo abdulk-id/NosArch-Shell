@@ -1,5 +1,7 @@
 import QtQuick
 
+import "."
+import "../panels" as Panels
 import "." as Bar
 
 // BarZone — one zone's worth of the bar, built from configuration (ticket 07).
@@ -49,6 +51,13 @@ Item {
     // an empty stretch of bar.
     required property string zoneName
 
+    // The panel coordinator for the surface this zone is on (ticket 11).
+    // Optional, defaulting to null, because a zone is built and measured on its
+    // own in the smoke test — where there is no window and so no panel layer to
+    // own a coordinator. Null there means "widgets get no coordinator", which is
+    // exactly right for a headless run.
+    property Panels.PanelCoordinator panelCoordinator: null
+
     readonly property var entries: Bar.BarConfig.entriesFor(zone.zoneName)
 
     property int spacing: 20
@@ -66,6 +75,8 @@ Item {
     // The widgets actually built, in order. Tracked here rather than counted
     // off row.children, because destroy() is deferred and the count would
     // briefly disagree with what is on screen after a configuration edit.
+    // The built widgets, in order. `builtCount` is derived from this rather than
+    // counted separately, so the two can never disagree.
     property var _built: []
     readonly property var built: zone._built
     readonly property int builtCount: zone._built.length
@@ -102,6 +113,21 @@ Item {
         const settings = (entry.settings === undefined || entry.settings === null)
             ? ({})
             : entry.settings
+
+        // The panel coordinator, handed over only to a widget that DECLARES a
+        // panel (ticket 11).
+        //
+        // Gated on `hasPanel` rather than always passed, for the reason
+        // documented at length in BarWidget.qml: createObject() ignores a named
+        // property the type does not have, so passing one to every widget would
+        // be harmless — but a widget that is handed a coordinator it never asked
+        // for could open a panel it has no `panelContent` for. The gate makes
+        // "can this widget open a panel" one readable property, and it is the
+        // same one the rest of the shell asks.
+        //
+        // Handed as an extra key on the same object as `options`, so there is
+        // still exactly ONE place where anything crosses from configuration or
+        // from the surface into a widget.
         let widget = null
         try {
             widget = component.createObject(parent !== null ? parent : row, {
@@ -139,6 +165,20 @@ Item {
                     unrecognised[u], Object.keys(widget.optionDefaults === undefined
                         ? ({}) : widget.optionDefaults))
             }
+        }
+        // The panel coordinator, handed to a widget that OFFERS a panel
+        // (ticket 11) — and only after the widget exists, because `hasPanel` is
+        // a property of the instance and a Component cannot report it.
+        //
+        // Assigned rather than passed at construction, and that is safe here
+        // precisely because `panelCoordinator` is a property ON THE CONTRACT
+        // (BarWidget) with a default of null: an assignment to a property that
+        // does not exist would throw ("Cannot assign to non-existent property"),
+        // so the gate is what keeps an ordinary widget — which does not declare
+        // a panel and therefore need no coordinator — from being handed one it
+        // has no use for. See the note in BarWidget.qml.
+        if (zone.panelCoordinator !== null && widget.hasPanel === true) {
+            widget.panelCoordinator = zone.panelCoordinator
         }
         return widget
     }
@@ -179,7 +219,13 @@ Item {
             const entry = entries[i]
             const widget = zone.construct(entry, row, Bar.BarConfig.componentFor(entry.type))
             if (widget !== null) {
-                built.push(entry.type)
+                // The INSTANCE, not the type name. `built` is read by the panel
+                // layer to find the widget that declares a given panel id, which it
+                // cannot do from a name alone — and a name would have to be looked
+                // up again, which is the indirection the widget registry exists to
+                // avoid. `builtCount` is unchanged by this, so every reader of the
+                // count sees exactly what it saw before.
+                built.push(widget)
             }
         }
         zone._built = built

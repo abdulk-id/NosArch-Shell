@@ -2,6 +2,8 @@ import Quickshell
 import Quickshell.Wayland
 import QtQuick
 
+import "."
+import "../panels" as Panels
 import "." as Bar
 
 // Bar — one window per screen, each holding a BarSurface (ticket 08).
@@ -168,8 +170,60 @@ Scope {
                 color: "transparent"
 
                 Bar.BarSurface {
+                    id: barSurface
+
                     anchors.fill: parent
                     surfaceId: barWindow.modelData.name
+
+                    // THE COORDINATOR, AND WHY IT LIVES IN HERE (ticket 11)
+                    //
+                    // One coordinator per bar surface, created by the surface
+                    // that holds the widgets which open panels — so "which panel
+                    // is open on this monitor" is a question with exactly one
+                    // owner, holding exactly one slot, and a second panel can
+                    // never be open on this surface because there is nowhere
+                    // else for it to go.
+                    //
+                    // It is here rather than in PanelSurface.qml because it is
+                    // the BAR's state: the widgets in the three zones below are
+                    // what call open()/toggle()/close(), and they are inside this
+                    // window. PanelSurface.qml is handed the instance rather
+                    // than making one, so the two halves cannot each believe
+                    // they own the slot.
+                    panelCoordinator: Panels.PanelCoordinator {}
+
+                    // ---- THE PANEL LAYER ----------------------------------
+                    //
+                    // Declared INSIDE the bar's window rather than beside it,
+                    // deliberately. The panel card is placed from the geometry of
+                    // a widget in this window, so the anchor has to be readable
+                    // from the panel's own object scope; nesting keeps it in
+                    // lexical reach without a registry, a screen name, or any
+                    // other lookup that could be answered wrongly.
+                    //
+                    // Verified on the installed Quickshell 0.3.2: a PanelWindow
+                    // declared in another PanelWindow's data still maps as its
+                    // own independent layer surface (checked with `hyprctl
+                    // layers` while it was up). See scripts/verify-panels.sh.
+                    Panels.PanelSurface {
+                        targetScreen: barWindow.modelData
+                        coordinator: barSurface.panelCoordinator
+
+                        barHeight: bar.barHeight
+                        // The bar's floating inset and the space the card hangs
+                        // below it, read from the reader beside the bar's own
+                        // geometry rather than re-guessed here — two copies of a
+                        // number is how a bar ends up with a card that does not
+                        // line up with it.
+                        barInset: Bar.BarConfig.edgeMargin
+
+                        // The bar surface, so a card can be placed from a widget
+                        // in ANOTHER window. Required rather than found: the bar
+                        // and the panel layer are two surfaces in one scope, and
+                        // a lookup by id or by type would be a lookup that could
+                        // answer wrongly; a value handed over cannot.
+                        barSurface: barSurface
+                    }
                 }
             }
         }

@@ -6,14 +6,27 @@ import "../../../services" as Services
 import "../../ui" as UI
 import "../../../components" as Components
 
+// PRESENTATION NOTE (ticket 11, ADR 0001)
+//
+//   This pre-rewrite module reads its glyph from Components.VolumeIcon, which is
+//   where the decision moved to when AudioService stopped publishing one.
+//   The file itself is deleted by ticket 18; this is the minimum edit needed for
+//   it to keep loading in the meantime, and it points at the real presentation
+//   rather than duplicating the glyph table — which is what would otherwise be
+//   the fourth copy of a display decision, and would drift.
 Components.TopIslandModule {
     id: volumeModule
+
+    // The glyph, from the shared PRESENTATION component. The note above explains
+    // why this is Components.VolumeIcon rather than a glyph off the audio
+    // service — the service publishes state, this file draws.
+    readonly property var volumeIcon: Components.VolumeIcon {}
 
     content: Component {
         Text {
             id: volumeText
 
-            text: Services.AudioService.output.textIcon
+            text: volumeModule.volumeIcon.glyph
 
             color: UI.Colors.foreground
             font {
@@ -65,7 +78,7 @@ Components.TopIslandModule {
 
                         anchors.centerIn: parent
 
-                        text: Services.AudioService.output.textIcon
+                        text: volumeModule.volumeIcon.glyph
                         color: UI.Colors.foreground
                         font {
                             family: UI.Fonts.fontFamily

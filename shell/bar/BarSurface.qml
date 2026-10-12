@@ -1,5 +1,7 @@
 import QtQuick
 
+import "."
+import "../panels" as Panels
 import "." as Bar
 import "../ui" as UI
 
@@ -72,6 +74,46 @@ Item {
     // to construct rather than reporting itself as every bar at once.
     required property string surfaceId
 
+    // ---- the panel coordinator (ticket 11) -----------------------------------
+    //
+    // One per surface, created by Bar.qml and handed to the zone, and every
+    // widget whose configuration entry carries a panel gets a reference to it at
+    // construction. BarWidget has the DEFAULT (`null`), so an ordinary widget
+    // never sees one and a widget that wants to open a panel can say so.
+    //
+    // The surface holds it rather than each widget finding "the" coordinator:
+    // a global would be a second object shared by every monitor, which is the
+    // bug ticket 10 removed from popup state, reintroduced one level up.
+    property Panels.PanelCoordinator panelCoordinator: null
+
+    // Every built widget on this surface, in zone then configuration order.
+    //
+    // Read by the panel layer's verification driver to find the widget that
+    // declares a given panel id, and by nothing else: the shell's own open path
+    // goes through a widget's `activate(widget)`, which is what a click calls. So
+    // this is a LOOKUP, not a route — a widget's panel is opened by the widget
+    // asking the coordinator, never by the shell reaching in and opening it.
+    readonly property var panelWidgets: {
+        // Flattened on purpose. A nested [left, centre, right] would need every
+        // reader to know the zone order and to walk two levels, and the only
+        // reader (the panel layer's verification driver) wants "every widget on
+        // this surface", in any order it can then search.
+        const out = []
+        for (const zoneBuilt of [leftZone.built, centerZone.built, rightZone.built]) {
+            for (let i = 0; i < zoneBuilt.length; i++) {
+                out.push(zoneBuilt[i])
+            }
+        }
+        return out
+    }
+
+    // Whether this surface has settled: every zone has built at least once and the
+    // surface has a real width. Used by the panel layer's driver so a panel is
+    // never placed against a bar that has not been laid out yet.
+    readonly property string settledKey: surface.width > 0
+        ? leftZone.builtCount + ":" + centerZone.builtCount + ":" + rightZone.builtCount
+        : ""
+
     // ---- appearance: one switch, read from configuration --------------------
 
     readonly property bool floating: Bar.BarConfig.floating
@@ -110,6 +152,7 @@ Item {
         Bar.BarZone {
             id: leftZone
             zoneName: "left"
+            panelCoordinator: surface.panelCoordinator
             anchors {
                 left: parent.left
                 verticalCenter: parent.verticalCenter
@@ -119,6 +162,7 @@ Item {
         Bar.BarZone {
             id: centerZone
             zoneName: "center"
+            panelCoordinator: surface.panelCoordinator
             // Against the container. No reference to leftZone or rightZone
             // appears here, and none may: a centre positioned relative to a
             // neighbour is exactly what this ticket exists to replace.
@@ -128,6 +172,7 @@ Item {
         Bar.BarZone {
             id: rightZone
             zoneName: "right"
+            panelCoordinator: surface.panelCoordinator
             anchors {
                 right: parent.right
                 verticalCenter: parent.verticalCenter

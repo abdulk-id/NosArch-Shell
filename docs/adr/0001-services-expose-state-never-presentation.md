@@ -42,18 +42,37 @@ Presentation is still living in services. As of this record:
 | Service | What it still publishes |
 | --- | --- |
 | `services/NetworkService.qml` | `textIcon`, plus a `wifiIcons` array indexed by signal strength |
-| `services/AudioService.qml` | `textIcon` on the output object and again on the input object |
 | `services/BluetoothService.qml` | `textIcon` covering adapter-enabled, discoverable and device-connected |
 | `services/SystemInfo.qml` | battery `textIcon`, plus `defaultIcons` and `chargingIcons` arrays |
 
-Thirteen call sites consume those glyphs today: seven under `shell/` (the
-volume, network, bluetooth and battery widgets, plus the volume OSD — volume
-and network each read theirs twice), three in `smoke.qml`, and three in the
-`testing/` service readout. Tickets 11 (audio), 12 (network) and 13 (bluetooth
-and battery) move them out, each onto the widget that draws them. Until those
-land, the table above is the truth: do not read this record as evidence that the
-services are presentation-free. `scripts/verify-docs.sh` fails if it ever claims
-otherwise.
+Nine call sites consume those glyphs today: four under `shell/` (the network,
+bluetooth and battery widgets — the network widget reads its glyph twice, once
+in the bar and once in its panel), two in `smoke.qml`, and three in the
+`testing/` service readout. Tickets 12 (network)
+and 13 (bluetooth and battery) move them out, each onto the widget that draws
+them. Until those land, the table above is the truth: do not read this record as
+evidence that the services are presentation-free. `scripts/verify-docs.sh` fails
+if it ever claims otherwise.
+
+**Audio is out of the service (ticket 11).** The migration above is still in
+progress for the other three services, and audio is not among them:
+`AudioService` publishes no glyph.
+the output and input `textIcon` properties are gone, and its inputs —
+`volume`, `isMuted`, `deviceFormFactor`, `isBluetooth`, `defaultSink` — are all
+still published by name, so nothing a consumer needed was lost. The decision
+itself moved to `components/VolumeIcon.qml`, as a **shared component** rather
+than as a property on the new volume widget, because three consumers draw volume
+(bar widget, volume OSD, and the pre-rewrite module ticket 18 deletes) and three
+copies of a glyph table would drift the moment the theme changed — which is
+failure mode 4 above, reached by a different route. The widget then applies
+`UI.Colors` for the muted colour, since a service may not import the palette and
+a component that decides *appearance* should not either.
+
+This is the migration's worked example for the tickets still to come: remove the
+property, keep every input by name, and put the decision in something that draws.
+Until network, bluetooth and battery have done the same, the table above is the
+truth about the services, and this record must not be read as saying they are
+presentation-free.
 
 ## Consequences
 

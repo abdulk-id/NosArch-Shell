@@ -1,0 +1,22 @@
+# shell/panels — the panel architecture (ticket 11).
+#
+# A panel is a full-screen layer-shell overlay surface with the card drawn
+# inside it, not a framework PopupWindow (docs/adr/0002). Three types, and the
+# split between them is the split between what can be verified without a
+# compositor and what cannot:
+#
+#   PanelCoordinator  WHICH panel is open on one surface. No window, draws
+#                     nothing. Holds one PopupState, so one-panel-at-a-time is
+#                     structural rather than a rule each widget must respect.
+#   PanelCard         the visible card: background, content, the in-surface
+#                     keyboard-focus target and the Escape handler. A plain
+#                     Item, so it can be driven headlessly.
+#   PanelSurface      the layer-shell surface: the dismissal mask that cuts the
+#                     bar strip out, the exclusive-focus prime, the placement,
+#                     and one transparent twin per OTHER output.
+#
+# A widget never imports any of this. It declares `panelContent` on the
+# contract and asks the coordinator to open it — see shell/widgets/BarWidget.qml.
+PanelCoordinator PanelCoordinator.qml
+PanelCard PanelCard.qml
+PanelSurface PanelSurface.qml

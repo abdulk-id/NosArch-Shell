@@ -28,8 +28,40 @@ _Avoid_: module, component, plugin, icon, element, tile
 
 **Panel**:
 The larger surface a widget opens beneath itself to show detail, dismissed by
-clicking anywhere else. At most one is open at a time.
+clicking anywhere else. At most one is open at a time. A full-screen layer-shell
+overlay with the card drawn inside it — never a framework popup window.
 _Avoid_: popup, popover, dialog, menu, dropdown, flyout
+
+**Panel card**:
+The visible part of an open panel: the framed box a widget's `panelContent` is
+drawn into. Distinguished from the panel because it is the part that holds focus
+and takes clicks; the panel is the surface and the dismissal around it.
+_Avoid_: popup window, dialog body, panel window
+
+**Dismissal surface**:
+The transparent, click-to-close area of a panel's surface, covering everything
+except the card and the bar's own strip. Its region mask is what keeps bar
+widgets clickable while a panel is open.
+_Avoid_: overlay, backdrop, scrim, curtain, dimmer
+
+**Dismissal twin**:
+The transparent surface a panel puts on every OTHER monitor, so a click there
+dismisses it. Pointer input is hit-tested per output, so the panel's own
+full-screen surface cannot see clicks elsewhere.
+_Avoid_: mirror, ghost surface, secondary panel, replica
+
+**Focus prime**:
+The moment at open when a panel's surface holds EXCLUSIVE keyboard focus before
+dropping to on-demand. It is what makes a panel typeable the instant it opens;
+holding exclusive focus for longer would route every pointer event on every
+output to it.
+_Avoid_: focus grab, focus steal, keyboard grab
+
+**Logical open state**:
+Whether a panel is open, as distinct from whether it is currently drawn. Focus
+and click ownership follow this, so a panel that has logically closed gives the
+desktop back immediately rather than after its closing animation.
+_Avoid_: visibility, shown, open-ness, live state
 
 **Idle-lock inhibit**:
 A running session-helper unit that keeps the machine from locking itself for as
@@ -43,7 +75,8 @@ screensaver, sleep
 
 **Service**:
 A singleton that reports what is true of the machine and offers the actions that
-change it, and nothing about how any of it looks.
+change it, and nothing about how any of it looks. A shared component may turn
+that state into a display decision; a service may not.
 _Avoid_: backend, adapter, provider, manager, controller, module
 
 **Widget registry**:

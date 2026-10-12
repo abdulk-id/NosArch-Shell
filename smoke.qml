@@ -58,6 +58,15 @@ import "shell/ui" as UI
 // singleton constructs it, so a registry that cannot load fails the smoke run.
 import "shell/widgets" as Widgets
 
+// The panel architecture (see shell/panels/qmldir, ticket 11). Referencing the
+// coordinator and the card here constructs them, so neither can rot without a
+// smoke run noticing. The SURFACE is only loaded — see configPlan.
+import "shell/panels" as Panels
+
+// The shared components, including the volume PRESENTATION that moved out of
+// AudioService in ticket 11 (ADR 0001).
+import "components" as Components
+
 // The bar's configuration reader and one zone (see shell/bar/qmldir, ticket 07).
 // Referencing BarConfig here constructs it, which is what makes the file
 // reader and its failure policy part of every smoke run.
@@ -142,9 +151,14 @@ Item {
             name: "AudioService",
             read: () => {
                 const a = Services.AudioService;
+                // The glyph is NOT read from the service: it no longer publishes
+                // one, which is the point of ADR 0001. The state is read from the
+                // service and the presentation from the component that owns it, so
+                // this readout shows what the bar will actually draw.
                 return "out " + a.output.volume + "%" + (a.output.isMuted ? " muted" : "") +
-                    " \"" + a.output.textIcon + "\" · in " + a.input.volume + "%" +
-                    (a.input.isMuted ? " muted" : "");
+                    " · in " + a.input.volume + "%" + (a.input.isMuted ? " muted" : "")
+                    + " · glyph \"" + smokeRoot.volumeIcon.glyph + "\""
+                    + " via " + smokeRoot.volumeIcon.statusLine;
             }
         },
         {
@@ -186,6 +200,12 @@ Item {
     ]
 
     property string _notifDataSeqId: ""
+
+    // The volume presentation component, constructed at t=0 so the AudioService
+    // readout below can read a real glyph off it. Not parented into any visual
+    // tree: it is a QtObject and draws nothing (ADR 0001 — a service may not
+    // import the palette, so the glyph cannot live in one).
+    readonly property var volumeIcon: Components.VolumeIcon {}
 
     // Constructed NOW, not at first use: a singleton is born when something
     // first references it, and the first widget to reference it would pay the
@@ -238,7 +258,24 @@ Item {
             singleton: true,
             probe: "probeWidgetRegistry"
         },
-        { name: "ClockWidget.qml", path: "shell/widgets/ClockWidget.qml", props: {} }
+        { name: "ClockWidget.qml", path: "shell/widgets/ClockWidget.qml", props: {} },
+        {
+            // The first PANEL-bearing widget (ticket 11). Instantiated like any
+            // other contract widget, from its own file and on the same load path
+            // the bar uses, so a type error or an unresolved binding inside it
+            // fails here rather than at the first click on a panel.
+            //
+            // Built with a REAL coordinator, because a widget that opens a panel
+            // without one has nothing to open: `togglePanel` checks for it and
+            // returns false. The coordinator is created per screen (see the
+            // `extra` hook in instantiateSet), because a shared one is the
+            // multi-monitor bug this harness exists to rule out.
+            name: "VolumeWidget.qml",
+            path: "shell/widgets/VolumeWidget.qml",
+            props: {},
+            perScreenCoordinator: true,
+            probe: "probeVolumeWidget"
+        }
     ]
 
     Component {
@@ -301,6 +338,75 @@ Item {
             loadOnly: true
         }
     ]
+
+    // ------------------------------------------------------ panel architecture
+    //
+    // Ticket 11. Three types, and the split between them is the split between
+    // what can be verified without a compositor and what cannot:
+    //
+    //   PanelCoordinator  drawn by nobody, owns one surface's single slot. It
+    //                     CAN be instantiated here, and its promises are real
+    //                     behaviour rather than shape — one-panel-at-a-time,
+    //                     switching in one call, ownership released on logical
+    //                     close. probePanelCoordinator drives all three.
+    //   PanelCard         a plain Item: no window, so it can be focused for
+    //                     real, headlessly. probePanelCard asks whether active
+    //                     focus ARRIVED, which is the promise "interactive
+    //                     elements inside a panel take keyboard focus".
+    //   PanelSurface      creates layer-shell surfaces. LOADED, not instantiated,
+    //                     for the same reason Bar.qml is: this entrypoint's one
+    //                     promise is that it draws NO surfaces at all, and a
+    //                     full-screen overlay swallowing the live desktop's
+    //                     clicks would be the worst possible way to fail that.
+    //                     Its geometry and focus prime are measured against the
+    //                     REAL shell by scripts/verify-panels.sh.
+
+    readonly property var panelPlan: [
+        {
+            name: "PanelCoordinator.qml",
+            path: "shell/panels/PanelCoordinator.qml",
+            props: {},
+            perScreen: true,
+            probe: "probePanelCoordinator"
+        },
+        {
+            name: "PanelCard.qml",
+            path: "shell/panels/PanelCard.qml",
+            props: { panelId: "probe-panel", content: panelProbeContent },
+            perScreenCoordinator: true
+        },
+        {
+            name: "PanelSurface.qml",
+            path: "shell/panels/PanelSurface.qml",
+            props: {},
+            loadOnly: true
+        }
+    ]
+
+    // Panel content for the card probe. It publishes its own `focusTarget`, so
+    // PanelCard's rule 1 (focus the content's target) is exercised rather than
+    // only its rule 2 (focus the card). Both are real paths and the surface
+    // picks between them, so both need to work.
+    Component {
+        id: panelProbeContent
+        Item {
+            implicitHeight: 40
+            property Item focusTarget: panelProbeFocusable
+            Text {
+                id: panelProbeFocusable
+                text: "probe"
+                focus: true
+            }
+        }
+    }
+
+    Component {
+        id: panelProbePlainContent
+        Item {
+            implicitHeight: 40
+            Text { text: "no declared target" }
+        }
+    }
 
     // ------------------------------------------------------------------ widgets
     //
@@ -370,6 +476,15 @@ Item {
             // at the first click on a panel.
             name: "PopupState.qml",
             path: "components/PopupState.qml",
+            props: {}
+        },
+        {
+            // The volume PRESENTATION, which moved out of AudioService in ticket
+            // 11 (ADR 0001). Planned like every other component so a service that
+            // drifted back into publishing a glyph, or this component that
+            // stopped loading, both fail here rather than at the first click.
+            name: "VolumeIcon.qml",
+            path: "components/VolumeIcon.qml",
             props: {}
         }
     ]
@@ -659,6 +774,309 @@ Item {
             " zone-rendered=" + z.builtCount);
     }
 
+    // ------------------------------------------------------- panel probes
+    //
+    // Ticket 11. These are BEHAVIOUR, not shape, and they are read off real
+    // instances built from the shipped files — a hand-written stand-in for a
+    // coordinator would agree with itself about being one-panel-at-a-time
+    // whether or not the real coordinator is.
+    //
+    //   panel-coordinator  one slot, one owner: only one panel open at a time,
+    //                       switching is one call, and ownership is released the
+    //                       moment the panel LOGICALLY closes.
+    //   panel-card         active focus really ARRIVES on an item inside the card,
+    //                       and Escape really dismisses through the coordinator.
+    //
+    // Each prints exactly one CONTRACT line per promise. scripts/verify-panels.sh
+    // parses them.
+
+    function probePanelCoordinator(): void {
+        const comp = Qt.createComponent("shell/panels/PanelCoordinator.qml")
+        if (comp.status !== Component.Ready) {
+            smokeRoot.contract("panel-coordinator", "UNKNOWN (failed to load)")
+            return
+        }
+        const c = comp.createObject(smokeRoot, {})
+        if (c === null) {
+            smokeRoot.contract("panel-coordinator", "UNKNOWN (would not construct)")
+            return
+        }
+        const notes = []
+        // An anchor that is a real Item, because that is what a widget hands over
+        // and the surface reads geometry from it.
+        const anchor = Qt.createComponent("components/Separator.qml").createObject(smokeRoot, {
+            separatorHeight: 4, separatorColor: "#000000"
+        })
+
+        notes.push("empty=" + c.isEmpty)
+        notes.push("owner-at-rest=" + c.ownsInput)
+
+        // Opening one panel.
+        c.open("volume", anchor)
+        notes.push("after-open=" + c.openId + "/owner=" + c.ownsInput
+            + "/anchored=" + (c.anchorWidget !== null))
+        const firstIsOpen = c.openId === "volume" && c.ownsInput === true
+
+        // Opening a SECOND panel must displace the first, in one call, with no
+        // observable moment where nothing is open. The "no moment" half is what
+        // a separate slot would get wrong, so both ids are read after ONE call.
+        c.open("network", anchor)
+        const switchedInOneCall = c.openId === "network" && c.ownsInput === true
+        notes.push("after-switch=" + c.openId + "/owner=" + c.ownsInput)
+
+        // Ownership must be released the moment the panel LOGICALLY closes —
+        // not after a close animation. There is no animation in this object at
+        // all, so the assertion that CAN be made here is the strong one: the
+        // value is false on the same tick as close(), with nothing left to wait
+        // for. The surface binding it to the mask is checked statically.
+        c.close()
+        const releasedImmediately = c.ownsInput === false && c.isEmpty === true
+            && c.anchorWidget === null
+        notes.push("after-close=owner:" + c.ownsInput + "/anchor-dropped:"
+            + (c.anchorWidget === null))
+
+        // Re-opening after a close is the "rapid clicking does not leave it
+        // stuck" promise, at the state level: an id set again is an open panel,
+        // with no residue from the previous one.
+        c.open("volume", anchor)
+        const reopened = c.openId === "volume" && c.ownsInput === true
+        notes.push("after-reopen=" + c.openId + "/owner=" + c.ownsInput)
+
+        // toggle is both directions in one call — the thing a widget actually
+        // calls, and the reason a widget cannot open a panel and then be told
+        // it is somehow not open.
+        c.toggle("volume", anchor)
+        const toggleClosed = c.isEmpty === true
+        c.toggle("volume", anchor)
+        const toggleReopened = c.openId === "volume" && c.ownsInput === true
+        notes.push("toggle-closes=" + toggleClosed + "/toggle-reopens=" + toggleReopened)
+
+        // An empty id is not a panel: asking to open "" closes rather than
+        // leaving the surface owning an input surface for a panel that does not
+        // exist.
+        c.open("", anchor)
+        const emptyIdCloses = c.isEmpty === true
+
+        c.close()
+        if (anchor !== null) {
+            anchor.destroy()
+        }
+        c.destroy()
+
+        smokeRoot.contract("panel-coordinator",
+            "notes=" + notes.join(" ")
+            + " opens=" + firstIsOpen
+            + " switches-in-one-call=" + switchedInOneCall
+            + " ownership-released-at-logical-close=" + releasedImmediately
+            + " reopens=" + reopened
+            + " toggle-both-ways=" + (toggleClosed && toggleReopened)
+            + " empty-id-closes=" + emptyIdCloses)
+    }
+
+    function probePanelCard(): void {
+        const comp = Qt.createComponent("shell/panels/PanelCard.qml")
+        if (comp.status !== Component.Ready) {
+            smokeRoot.contract("panel-card", "UNKNOWN (failed to load)")
+            return
+        }
+        const coordinator = smokeRoot.makeCoordinator("card-probe", smokeRoot)
+        if (coordinator === null) {
+            smokeRoot.contract("panel-card", "UNKNOWN (no coordinator)")
+            return
+        }
+        coordinator.open("probe-panel", null)
+
+        const card = comp.createObject(smokeRoot, {
+            panelId: "probe-panel",
+            panelCoordinator: coordinator,
+            content: panelProbeContent
+        })
+        if (card === null) {
+            smokeRoot.contract("panel-card", "UNKNOWN (would not construct)")
+            return
+        }
+        // REAL focus, in a real item tree, with no window anywhere. This is the
+        // promise "interactive elements inside a panel take keyboard focus"
+        // reduced to the part that is not about the compositor: if focus does not
+        // arrive HERE, no amount of layer-shell focus would have made a key
+        // handler inside the panel fire.
+        const arrived = card.focusContent()
+
+        // Whether focus is ON the card (which is what a FocusScope reports once
+        // it has forwarded into its content) and whether it is on the item the
+        // content named. `activeFocusItem` is deliberately NOT used: on a
+        // windowless tree it reads null even when focus has genuinely arrived —
+        // active focus needs a window, and this harness has none — so an
+        // assertion built on it would fail for a reason that has nothing to do
+        // with the promise. Checked on this build before relying on it.
+        const targetHoldsFocus = card.focusTarget !== null
+            && card.focusTarget.activeFocus === true
+        const focusIsInsideTheCard = arrived && targetHoldsFocus
+
+        // The focus target must be the content's OWN declaration when it has
+        // one — that is what makes the volume slider, and not the panel frame,
+        // the thing the arrow keys drive.
+        // The target must be the CONTENT'S OWN declaration, not the card — that
+        // is what makes the volume slider, and not the panel frame, the thing the
+        // arrow keys drive.
+        const namedTheTarget = card.focusTarget !== null && card.focusTarget !== card
+
+        // Content with no declared target must still be focusable: the card is
+        // the fallback, and a panel whose content forgets to declare one would
+        // otherwise be a dead keyboard.
+        const plain = comp.createObject(smokeRoot, {
+            panelId: "probe-panel",
+            panelCoordinator: coordinator,
+            content: panelProbePlainContent
+        })
+        let plainArrived = false
+        let plainUsedTheCard = false
+        if (plain !== null) {
+            plainArrived = plain.focusContent()
+            plainUsedTheCard = plain.focusTarget === plain
+            plain.destroy()
+        }
+
+        // The dismiss PATH is exercised here; the Escape KEYSTROKE is not, and
+        // this comment is where that boundary is recorded.
+        //
+        // A `KeyEvent` is NOT constructible in QML on this build (`new KeyEvent()`
+        // raises "Type error"; Qt.createQmlObject on the type fails too — both
+        // checked, see scripts/verify-panels.sh). So there is no way to synthesise
+        // a keystroke against an item in a windowless tree, and calling the Keys
+        // handler's target directly would only prove the handler exists.
+        //
+        // What IS checked here is that a real Escape keypress, arriving through
+        // the compositor, closes the panel: scripts/verify-panels.sh opens a
+        // panel in the REAL shell and injects `wtype -k Escape` at whatever
+        // surface holds keyboard focus, then reads the shell's own report. That
+        // is the genuine end-to-end path — layer-shell exclusive focus, in-surface
+        // active focus, key handler, coordinator close — and it is where the
+        // Escape promise is actually verified.
+        //
+        // What this case contributes is everything before the keypress: that
+        // focus ARRIVED on an in-surface item (which is what makes the keypress
+        // reachable at all), that the item is the content's own focus target, and
+        // that content without a declared target still gets focus.
+        coordinator.open("probe-panel", null)
+        const wasOpenBeforeEscape = coordinator.hasOpenPanel
+        card.forceActiveFocus()
+        coordinator.close()
+        const released = !coordinator.hasOpenPanel && !coordinator.ownsInput
+
+        const report = "focus-arrived=" + arrived
+            + " focus-is-inside-the-card=" + focusIsInsideTheCard
+            + " focus-target=" + (namedTheTarget ? "the-content's-own" : "the-card")
+            + " plain-content-focus-arrived=" + plainArrived
+            + " plain-content-fell-back-to-the-card=" + plainUsedTheCard
+            + " focus-then-close-releases-ownership=" + released
+        smokeRoot.contract("panel-card", report + " (was-open-before-close="
+            + wasOpenBeforeEscape + " card=" + card.describe() + ")")
+
+        card.destroy()
+        coordinator.destroy()
+    }
+
+    // The volume widget's own promises (ticket 11): that it DECLARES a panel,
+    // that presentation is no longer in the service, that the glyph follows the
+    // device's form factor and the mute state, and that the widget can ask for
+    // its panel through the coordinator it was handed.
+    function probeVolumeWidget(): void {
+        const comp = Qt.createComponent("shell/widgets/VolumeWidget.qml")
+        if (comp.status !== Component.Ready) {
+            smokeRoot.contract("volume-widget", "UNKNOWN (failed to load)")
+            return
+        }
+        const coordinator = smokeRoot.makeCoordinator("volume-probe", smokeRoot)
+        const w = comp.createObject(smokeRoot, { panelCoordinator: coordinator })
+        if (w === null) {
+            smokeRoot.contract("volume-widget", "UNKNOWN (would not construct)")
+            return
+        }
+
+        // ---- the DEVICE promise ---------------------------------------
+        // "the indicator distinguishes headphones, handsets and speakers so the
+        // icon matches my hardware".
+        //
+        // Asked as a question about the presentation's own decision function, at
+        // a FIXED volume and a FIXED unmuted state, once per form factor. Asking
+        // the live device instead would only exercise whichever branch this
+        // machine's hardware happens to take: a laptop with built-in speakers
+        // reports one glyph, and a check comparing it with itself would pass
+        // without ever looking at the headphone or handset case at all.
+        //
+        // The fixed state matters as much as the fixed form. The muted glyph is
+        // also what a zero volume shows, so a probe using volume=0 would compare
+        // three identical "muted" glyphs and call that a pass.
+        const atVolume = 50
+        const decision = smokeRoot.volumeIcon
+        const forms = ["headset", "headphone", "portable", "phone", "car", ""]
+        const perForm = []
+        for (const form of forms) {
+            perForm.push((form === "" ? "(none)" : form) + "=\""
+                + decision.glyphFor(form, atVolume, false, true) + "\"")
+        }
+        const headphoneGlyph = decision.glyphFor("headset", atVolume, false, true)
+        const handsetGlyph = decision.glyphFor("portable", atVolume, false, true)
+        const speakerGlyph = decision.glyphFor("", atVolume, false, true)
+        const threeDiffer = headphoneGlyph !== speakerGlyph
+            && handsetGlyph !== speakerGlyph
+            && headphoneGlyph !== handsetGlyph
+
+        // ---- the MUTED promise -----------------------------------------
+        // A muted output must look muted rather than quiet. A zero volume is a
+        // DIFFERENT fact — silence nobody silenced — but it must still read as
+        // silent, so the two share a glyph while the widget keeps them apart in
+        // `silent`/`muted`. Asserted, because conflating them is the exact
+        // mistake those two properties exist to prevent.
+        const mutedGlyph = decision.glyphFor("headset", atVolume, true, true)
+        const zeroGlyph = decision.glyphFor("headset", 0, false, true)
+        const mutedIsDistinct = mutedGlyph !== headphoneGlyph
+            && mutedGlyph !== speakerGlyph
+            && zeroGlyph === mutedGlyph
+
+        // And the volume bands must actually change the speaker glyph, or the
+        // "one, two or three waves" half of the promise is decoration.
+        const bandsDiffer = decision.glyphFor("", 10, false, true)
+            !== decision.glyphFor("", 50, false, true)
+            && decision.glyphFor("", 50, false, true)
+            !== decision.glyphFor("", 90, false, true)
+
+        smokeRoot.contract("volume-widget",
+            "hasPanel=" + w.hasPanel
+            + " panelContent=" + (w.panelContent === null ? "null" : "SUPPLIED")
+            + " panelId=" + (w.panelId === undefined ? "UNDEFINED" : w.panelId)
+            + " coordinator-handed-over=" + (w.panelCoordinator !== null)
+            + " headset=\"" + headphoneGlyph + "\""
+            + " handset=\"" + handsetGlyph + "\""
+            + " speaker=\"" + speakerGlyph + "\""
+            + " muted=\"" + mutedGlyph + "\""
+            + " zero=\"" + zeroGlyph + "\""
+            + " by-device-at-" + atVolume + "%: " + perForm.join(" ")
+            + " three-device-kinds-differ=" + threeDiffer
+            + " muted-is-distinct=" + mutedIsDistinct
+            + " volume-bands-differ=" + bandsDiffer
+            + " \u00b7 live: " + smokeRoot.volumeIcon.describe())
+
+        // The widget must be able to ASK for its panel through the coordinator it
+        // was given — one call, both directions — which is the whole of the
+        // widget's half of the architecture. A widget that declares a panel and
+        // cannot ask for it is the failure this exists to catch.
+        w.togglePanel(w.panelId)
+        const opened = coordinator.openId === w.panelId && coordinator.ownsInput
+        w.togglePanel(w.panelId)
+        const closedAgain = !coordinator.hasOpenPanel && !coordinator.ownsInput
+
+        smokeRoot.contract("volume-panel-toggle",
+            "widget-opens=" + opened + " widget-toggles-closed=" + closedAgain
+            + " id=" + w.panelId)
+
+        w.destroy()
+        if (coordinator !== null) {
+            coordinator.destroy()
+        }
+    }
+
     // ------------------------------------------------- per-widget options probe
     //
     // Ticket 09's seam: read off REAL widgets built by the REAL zone from a
@@ -755,6 +1173,9 @@ Item {
         for (const c of smokeRoot.configPlan) {
             smokeRoot.plan("config", c.name);
         }
+        for (const p of smokeRoot.panelPlan) {
+            smokeRoot.plan("panel", p.name);
+        }
         for (const c of smokeRoot.componentPlan) {
             smokeRoot.plan("component", c.name);
         }
@@ -845,16 +1266,46 @@ Item {
                 undefined, undefined, undefined, extra)
         }
         for (const w of smokeRoot.contractWidgetPlan) {
+            // A widget that opens a panel needs a coordinator to open it on, and
+            // it needs its OWN: a shared one is the multi-monitor bug this
+            // harness exists to catch. So the per-screen state is built here and
+            // handed in, and a widget that does not declare a panel simply
+            // ignores it (BarWidget's `panelCoordinator` defaults to null).
+            const extra = w.perScreenCoordinator === true
+                ? { panelCoordinator: smokeRoot.makeCoordinator(screen, host) }
+                : {}
             smokeRoot.instantiateOne("widget", w.name, w.path, w.props, host, screen,
-                w.singleton === true, w.probe);
+                w.singleton === true, w.probe, false, extra);
         }
         for (const c of smokeRoot.configPlan) {
             smokeRoot.instantiateOne("config", c.name, c.path, c.props, host, screen,
                 c.singleton === true, c.probe, c.loadOnly === true);
         }
+        // The panel architecture, per screen for the same reason: two screens'
+        // coordinators sharing one slot is exactly the bug this harness catches.
+        for (const p of smokeRoot.panelPlan) {
+            const extra = p.perScreenCoordinator === true
+                ? { panelCoordinator: smokeRoot.makeCoordinator(screen, host) }
+                : {}
+            smokeRoot.instantiateOne("panel", p.name, p.path, p.props, host, screen,
+                false, p.probe, p.loadOnly === true, extra)
+        }
         for (const c of smokeRoot.componentPlan) {
             smokeRoot.instantiateOne("component", c.name, c.path, c.props, host, screen);
         }
+    }
+
+    // One PanelCoordinator per screen, built from the SHIPPED file. A stub here
+    // could agree with itself about behaviour the real one does not have, and
+    // agreeing with itself is the whole failure mode ticket 10 removed.
+    function makeCoordinator(screen: string, host: Item): var {
+        const comp = Qt.createComponent("shell/panels/PanelCoordinator.qml")
+        if (comp.status !== Component.Ready) {
+            console.warn("SMOKE FAIL panel-coordinator(" + screen + ") — failed to load: "
+                + comp.errorString())
+            return null
+        }
+        return comp.createObject(host !== null ? host : smokeRoot, {})
     }
 
     // One PopupState per screen, parented into that screen's host so it dies
@@ -961,6 +1412,12 @@ Item {
 
         // The bar's layout (ticket 08): the zones' real geometry, measured.
         smokeRoot.probeBarSurface();
+
+        // The panel architecture (ticket 11): the coordinator's state promises
+        // and the card's real keyboard focus, both read off live instances.
+        smokeRoot.probePanelCoordinator();
+        smokeRoot.probePanelCard();
+        smokeRoot.probeVolumeWidget();
 
         // Services: create each singleton (via the qmldir registration) and
         // read the leaves the shell consumes.

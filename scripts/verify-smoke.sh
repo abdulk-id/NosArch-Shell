@@ -115,6 +115,11 @@ sources = (
     # silent gap, and a plan entry with no type is a test that stopped testing
     # anything.
     ("shell/bar/qmldir", set(qmldir_names('shell/bar/qmldir')), planned('configPlan')),
+    # The panel architecture (ticket 11): the coordinator, the card and the
+    # surface. Same rule — a type that exists but is never instantiated is a
+    # silent gap, and a plan entry with no type is a test that stopped testing
+    # anything.
+    ("shell/panels/qmldir", set(qmldir_names('shell/panels/qmldir')), planned('panelPlan')),
     ("components/qmldir", set(qmldir_names('components/qmldir')), planned('componentPlan')),
 )
 

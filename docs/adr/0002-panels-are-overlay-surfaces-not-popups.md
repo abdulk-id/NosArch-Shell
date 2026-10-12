@@ -1,6 +1,8 @@
 # Panels are layer-shell overlay surfaces, not framework popups
 
-Status: accepted. The decision is settled; nothing is implemented yet.
+Status: accepted. The decision is settled and **implemented** (ticket 11). The
+two pre-rewrite popups below remain, because the widgets that use them are
+deleted by ticket 18 rather than by this one.
 
 A panel is a full-screen `PanelWindow` on the overlay layer with the card drawn
 inside it, not a Quickshell `PopupWindow`. Framework popups were abandoned
@@ -71,13 +73,41 @@ rather than something each widget has to respect.
   the per-monitor surfaces and the other outputs' twins apart by namespace.
 - Panel positioning is top-bar only. Left, right and bottom bar positions are
   not implemented; adding one is a contained change.
-- The panel architecture is not yet implemented. There are two popup-based
-  panels in the tree today, not one: `components/TopIslandModule.qml` declares a
-  `PopupWindow` with `grabFocus: true` and the recursive `makeChildrenUnfocusable`
-  walk, and `shell/topisland/modules/NetworkModule.qml` declares a second
-  `PopupWindow` of its own. They also disagree about the shared popup state —
-  `NetworkModule` calls `popupState.set(id)` with one argument while
-  `TopIslandModule` calls `popupState.set(id, screen)` with two, so the network
-  panel records no monitor and cannot be dismissed per output. Both go when the
-  panel architecture lands, and `scripts/verify-docs.sh` fails if this record
-  claims otherwise.
+- **The removal is in progress, and the panels themselves are built.** There are
+  two popup-based panels in the tree today, not one:
+  `components/TopIslandModule.qml` declares a `PopupWindow` with
+  `grabFocus: true` and the recursive `makeChildrenUnfocusable` walk, and
+  `shell/topisland/modules/NetworkModule.qml` declares a second `PopupWindow` of
+  its own. They also disagree about the shared popup state — `NetworkModule`
+  called `popupState.set(id)` with one argument while `TopIslandModule` called
+  `popupState.set(id, screen)` with two — which ticket 10 already fixed at the
+  state level (see `components/PopupState.qml`). They go with the widgets ticket
+  18 deletes, and `scripts/verify-docs.sh` fails if this record claims otherwise.
+  `shell/panels/` carries none of it: no `PopupWindow`, no `grabFocus`, and no
+  `makeChildrenUnfocusable` walk, which `scripts/verify-panels.sh` fails on.
+
+## What was built, and what measurement changed
+
+Three things in the design above turned out to matter for reasons the prose did
+not anticipate, and each was measured on this machine rather than reasoned about:
+
+- **`ExclusionMode.Ignore` is required, not tidy.** A full-screen panel window
+  with the default `Auto` exclusion came back from Hyprland at
+  `0 85 1920 995` — the compositor reserved the *bar's* exclusive zone and the
+  panel did not cover the screen it was supposed to dismiss clicks on.
+- **The prime does not tear the surface down.** Switching `keyboardFocus` from
+  `Exclusive` to `OnDemand` left the layer-surface id identical
+  (`55b1e0ac2d70` either side of the switch), confirming the plain-bindable-
+  property claim above on this compositor.
+- **A `PanelWindow` declared inside another `PanelWindow`'s data still maps as
+  its own independent layer surface**, which is what lets the panel surface live
+  in the same object scope as the bar window whose widgets it places itself
+  under — no registry, no screen name, no lookup that could answer wrongly.
+
+The one thing measurement could **not** cover is a physical mouse: this machine
+has no pointer-injection tool, so every promise needing a click — a click opening
+a panel, a click on the bar strip not dismissing, a click on another monitor
+dismissing, a hand-held drag of the volume slider — is recorded in
+`docs/known-gaps.md` rather than claimed. `scripts/verify-panels.sh` injects a
+real **keystroke** through the compositor, so the keyboard half of the focus
+model is genuinely verified; the pointer half is not.

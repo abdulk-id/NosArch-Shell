@@ -27,37 +27,19 @@ Singleton {
         readonly property bool isBluetooth: (defaultSink?.properties["device.api"] ?? "") === "bluez5"
         readonly property string deviceFormFactor: defaultSink?.properties["device.form-factor"] ?? ""
 
-        readonly property string textIcon: {
-            if (!defaultSink || !defaultSink.audio || !defaultSink.ready) {
-                return "󰸈";
-            }
-
-            if (isMuted) {
-                return "󰖁";
-            }
-
-            let icon = "";
-
-            if (deviceFormFactor === "headphone" || deviceFormFactor === "headset") {
-                icon = "";
-            } else if (deviceFormFactor === "phone" || deviceFormFactor === "portable") {
-                icon = "";
-            } else if (deviceFormFactor === "car") {
-                icon = "";
-            } else {
-                if (volume === 0) {
-                    icon = "";
-                } else if (volume <= 25) {
-                    icon = "";
-                } else if (volume <= 50) {
-                    icon = "";
-                } else {
-                    icon = "";
-                }
-            }
-
-            return isBluetooth ? `${icon} 󰂰` : icon;
-        }
+        // NOTE: the glyph property this used to publish is GONE (ticket 11,
+        // ADR 0001). Presentation belongs to the widget: this
+        // service reports what is TRUE — the volume, whether it is muted, and
+        // the device's form factor — and shell/widgets/VolumeWidget.qml decides
+        // what that looks like. Every input the old glyph needed is still
+        // published above, by name; only the drawing decision moved.
+        //
+        // A reader tempted to put it back should read docs/adr/0001 first: that
+        // record exists precisely because removing it looks like a regression to
+        // someone who has not read it.
+        //
+        // What is left here is state and the actions that change it, which is the
+        // whole of the service/widget boundary.
 
         function setVolume(newVolume: real) {
             if (!defaultSink?.audio || !defaultSink?.ready) {
@@ -99,17 +81,11 @@ Singleton {
         readonly property int volume: Math.round((defaultSource?.audio?.volume ?? 0) * 100)
         readonly property bool isMuted: defaultSource?.audio?.muted ?? false
 
-        readonly property string textIcon: {
-            if (!defaultSource || !defaultSource.audio || !defaultSource.ready) {
-                return "";
-            }
-
-            if (inputObject.isMuted) {
-                return "";
-            }
-
-            return "";
-        }
+        // The microphone glyph goes with the output one, for the same reason and
+        // under the same decision (ADR 0001): this service reports the input's
+        // volume and mute state, and a widget that draws them decides what they
+        // look like. No input widget is on the contract yet — the pre-rewrite
+        // microphone module reads no glyph from here either.
 
         function setVolume(newVolume: real) {
             if (!defaultSource?.audio || !defaultSource?.ready) {

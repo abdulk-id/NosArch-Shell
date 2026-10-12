@@ -44,7 +44,13 @@ Singleton {
     // name → file name, relative to this directory. NOT a path: never a
     // leading slash, never a "..", never a directory. Scripts assert this.
     readonly property var entries: ({
-        "clock": "ClockWidget.qml"
+        "clock": "ClockWidget.qml",
+        // Kebab-case in configuration, UpperCamelCase as the file and the QML
+        // type. The first widget that opens a PANEL rather than showing a label
+        // (ticket 11), and so the first that needed presentation moved out of a
+        // service: AudioService publishes state, VolumeWidget decides what it
+        // looks like (ADR 0001).
+        "volume": "VolumeWidget.qml"
     })
 
     // Every registered name, sorted — for logging and for the smoke readout.

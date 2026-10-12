@@ -148,8 +148,13 @@ Singleton {
             "floating": true,
             "zones": {
                 "left": [],
+                // The clock keeps the centre; the volume widget joins it on the
+                // right. The built-in defaults are the only place they are
+                // written, and this is that place (see the schema note above) —
+                // so the bar a user sees before they write a configuration file
+                // is also the bar that shows a panel working.
                 "center": [{ "type": "clock" }],
-                "right": []
+                "right": [{ "type": "volume" }]
             }
         }
     })
