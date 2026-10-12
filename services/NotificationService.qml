@@ -4,11 +4,13 @@ import QtQuick
 import Quickshell
 import Quickshell.Services.Notifications
 
+import "../shell/state" as State
+
 Singleton {
     id: notifService
 
     property list<var> notifications: []
-    property bool doNotDisturb: false
+    readonly property bool doNotDisturb: State.ShellState.doNotDisturb
     readonly property int count: notifications.length
     property int _seqCounter: 0
 
@@ -74,6 +76,10 @@ Singleton {
         if (notifData) {
             notifData.dismiss();
         }
+    }
+
+    function toggleDoNotDisturb(): void {
+        State.ShellState.doNotDisturb = !State.ShellState.doNotDisturb
     }
 
     function dismissAll(): void {

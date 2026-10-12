@@ -19,4 +19,5 @@ PlayerWidget PlayerWidget.qml
 Launcher Launcher.qml
 Workspaces Workspaces.qml
 Tray Tray.qml
+NotificationWidget NotificationWidget.qml
 singleton WidgetRegistry 1.0 WidgetRegistry.qml

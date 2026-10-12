@@ -72,6 +72,8 @@ import "components" as Components
 // reader and its failure policy part of every smoke run.
 import "shell/bar" as Bar
 
+import "shell/state" as State
+
 Item {
     id: smokeRoot
 
@@ -223,6 +225,7 @@ Item {
         Services.BluetoothService,
         Services.MediaService,
         Services.NetworkService,
+        State.ShellState,
         Services.NotificationService
     ]
 
@@ -288,7 +291,8 @@ Item {
         { name: "PlayerWidget.qml", path: "shell/widgets/PlayerWidget.qml", props: {} },
         { name: "Launcher.qml", path: "shell/widgets/Launcher.qml", props: {} },
         { name: "Workspaces.qml", path: "shell/widgets/Workspaces.qml", props: {} },
-        { name: "Tray.qml", path: "shell/widgets/Tray.qml", props: {} }
+        { name: "Tray.qml", path: "shell/widgets/Tray.qml", props: {} },
+        { name: "NotificationWidget.qml", path: "shell/widgets/NotificationWidget.qml", props: {} }
     ]
 
     Component {
@@ -310,6 +314,12 @@ Item {
     // widgets would pass whether or not the zone works.
 
     readonly property var configPlan: [
+        {
+            name: "ShellState.qml",
+            path: "shell/state/ShellState.qml",
+            props: {},
+            singleton: true
+        },
         {
             name: "BarConfig.qml",
             path: "shell/bar/BarConfig.qml",
@@ -685,6 +695,33 @@ Item {
                 "command=" + launcher.launcherCommand)
             launcher.destroy()
         }
+    }
+
+    function probeNotificationWidget(): void {
+        const comp = Qt.createComponent("shell/widgets/NotificationWidget.qml")
+        if (comp.status !== Component.Ready) {
+            smokeRoot.contract("notification-source", "service=UNKNOWN widget=UNKNOWN")
+            smokeRoot.contract("notification-dnd-visual", "role=UNKNOWN")
+            smokeRoot.contract("notification-waiting", "count=UNKNOWN")
+            return
+        }
+        const w = comp.createObject(smokeRoot, {})
+        if (w === null) {
+            smokeRoot.contract("notification-source", "service=UNKNOWN widget=UNKNOWN")
+            smokeRoot.contract("notification-dnd-visual", "role=UNKNOWN")
+            smokeRoot.contract("notification-waiting", "count=UNKNOWN")
+            return
+        }
+        const svcDnd = Services.NotificationService.doNotDisturb
+        smokeRoot.contract("notification-source",
+            "service=" + svcDnd + " widget=" + w.doNotDisturb)
+        smokeRoot.contract("notification-dnd-visual",
+            "role=" + w.visualRole + " dnd=" + w.doNotDisturb +
+            " icon=" + w.indicatorIcon)
+        smokeRoot.contract("notification-waiting",
+            "count=" + Services.NotificationService.count +
+            " hasWaiting=" + w.hasWaiting + " role=" + w.visualRole)
+        w.destroy()
     }
 
     function probeBaseHover(): void {
@@ -1266,10 +1303,10 @@ Item {
     Component.onCompleted: {
         // Touch the singleton list so it is evaluated right now (not on first
         // read) and so a drift between this file and services/qmldir is loud.
-        if (smokeRoot.serviceSingletons.length !== 6) {
+        if (smokeRoot.serviceSingletons.length !== 7) {
             console.warn("SMOKE FAIL service-list — smoke.qml touches " +
-                smokeRoot.serviceSingletons.length + " singletons, expected 6; " +
-                "add the new service to servicePlan and this list");
+                smokeRoot.serviceSingletons.length + " singletons, expected 7; " +
+                "add the new singleton to servicePlan / serviceSingletons and configPlan");
         }
         console.info("SMOKE BEGIN pid " + Quickshell.processId +
             " · hardware cap " + smokeRoot.hardwareCapMs + "ms · final settle " + smokeRoot.finalSettleMs + "ms");
@@ -1517,6 +1554,7 @@ Item {
         smokeRoot.probeTicket13Widgets();
         smokeRoot.probePlayerWidget();
         smokeRoot.probeMediaServiceRename();
+        smokeRoot.probeNotificationWidget();
 
         // The bar's contents (ticket 07): the reader's verdict has already been
         // logged by the singleton itself, so what is added here is that live

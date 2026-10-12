@@ -103,6 +103,22 @@ def planned(block_name):
         return set()
     return {n.removesuffix('.qml') for n in re.findall(r'name:\s*"([^"]+)"', m.group(1))}
 
+def planned_config(path_prefix):
+    """configPlan entries filtered by which directory they load from."""
+    m = re.search(r'configPlan:\s*\[(.*?)\]', smoke, re.S)
+    if not m:
+        return set()
+    out = set()
+    for block in re.finditer(r'\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}', m.group(1), re.S):
+        body = block.group(1)
+        name_m = re.search(r'name:\s*"([^"]+)"', body)
+        path_m = re.search(r'path:\s*"([^"]+)"', body)
+        if not name_m or not path_m:
+            continue
+        if path_m.group(1).startswith(path_prefix):
+            out.add(name_m.group(1).removesuffix('.qml'))
+    return out
+
 sources = (
     ("services/qmldir", set(qmldir_names('services/qmldir')), planned('servicePlan')),
     ("shell/topisland/modules/", {f.stem for f in (repo / 'shell/topisland/modules').glob('*.qml')}, planned('widgetPlan')),
@@ -114,7 +130,8 @@ sources = (
     # zone. Same rule — a type that exists but is never instantiated is a
     # silent gap, and a plan entry with no type is a test that stopped testing
     # anything.
-    ("shell/bar/qmldir", set(qmldir_names('shell/bar/qmldir')), planned('configPlan')),
+    ("shell/bar/qmldir", set(qmldir_names('shell/bar/qmldir')), planned_config('shell/bar/')),
+    ("shell/state/qmldir", set(qmldir_names('shell/state/qmldir')), planned_config('shell/state/')),
     # The panel architecture (ticket 11): the coordinator, the card and the
     # surface. Same rule — a type that exists but is never instantiated is a
     # silent gap, and a plan entry with no type is a test that stopped testing

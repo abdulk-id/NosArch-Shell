@@ -26,6 +26,6 @@ Item {
 
         cursorShape: Qt.PointingHandCursor
 
-        onClicked: Services.NotificationService.doNotDisturb = !Services.NotificationService.doNotDisturb
+        onClicked: Services.NotificationService.toggleDoNotDisturb()
     }
 }

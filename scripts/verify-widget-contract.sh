@@ -284,7 +284,8 @@ failed = [(t[1], t[2], ' '.join(t[3:])) for ln in lines
 contract = ['BarWidget.qml', 'SimpleBarWidget.qml', 'WidgetRegistry.qml',
             'ClockWidget.qml', 'VolumeWidget.qml', 'CpuWidget.qml',
             'MemoryWidget.qml', 'BatteryWidget.qml', 'BluetoothWidget.qml',
-            'PlayerWidget.qml', 'Launcher.qml', 'Workspaces.qml', 'Tray.qml']
+            'PlayerWidget.qml', 'Launcher.qml', 'Workspaces.qml', 'Tray.qml',
+            'NotificationWidget.qml']
 rc = 0
 print(f"    contract widgets ({len(contract)}):")
 for name in contract:

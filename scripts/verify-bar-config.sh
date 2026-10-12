@@ -242,9 +242,14 @@ def shell_still_started():
 # from the shell: an expectation derived from the code under test proves
 # nothing.
 DEFAULTS = {"bar": {"floating": True, "zones": {
-    "left": [{"type": "launcher"}, {"type": "workspaces"}],
-    "center": [{"type": "clock"}],
-    "right": [{"type": "tray"}],
+    "left": [
+        {"type": "launcher"},
+        {"type": "workspaces"},
+        {"type": "cpu"},
+        {"type": "memory"},
+    ],
+    "center": [{"type": "player"}, {"type": "clock"}],
+    "right": [{"type": "tray"}, {"type": "volume"}],
 }}}
 
 def zone_types_of(cfg):

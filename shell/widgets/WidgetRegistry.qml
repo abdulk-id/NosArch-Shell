@@ -58,7 +58,8 @@ Singleton {
         "player": "PlayerWidget.qml",
         "launcher": "Launcher.qml",
         "workspaces": "Workspaces.qml",
-        "tray": "Tray.qml"
+        "tray": "Tray.qml",
+        "notification": "NotificationWidget.qml"
     })
 
     // Every registered name, sorted — for logging and for the smoke readout.

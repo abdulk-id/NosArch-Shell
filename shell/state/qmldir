@@ -1,0 +1,2 @@
+# shell/state — persisted preferences (ticket 16).
+singleton ShellState 1.0 ShellState.qml
