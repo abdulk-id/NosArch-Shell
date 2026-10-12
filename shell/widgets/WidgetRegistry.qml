@@ -59,7 +59,8 @@ Singleton {
         "launcher": "Launcher.qml",
         "workspaces": "Workspaces.qml",
         "tray": "Tray.qml",
-        "notification": "NotificationWidget.qml"
+        "notification": "NotificationWidget.qml",
+        "idle-lock": "IdleLockWidget.qml"
     })
 
     // Every registered name, sorted — for logging and for the smoke readout.

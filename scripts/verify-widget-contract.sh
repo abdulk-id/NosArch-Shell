@@ -285,7 +285,7 @@ contract = ['BarWidget.qml', 'SimpleBarWidget.qml', 'WidgetRegistry.qml',
             'ClockWidget.qml', 'VolumeWidget.qml', 'CpuWidget.qml',
             'MemoryWidget.qml', 'BatteryWidget.qml', 'BluetoothWidget.qml',
             'PlayerWidget.qml', 'Launcher.qml', 'Workspaces.qml', 'Tray.qml',
-            'NotificationWidget.qml']
+            'NotificationWidget.qml', 'IdleLockWidget.qml']
 rc = 0
 print(f"    contract widgets ({len(contract)}):")
 for name in contract:

@@ -58,7 +58,7 @@ pointing at whatever runtime directory the current config path hashes to. It is
 therefore **never** a real change: `git checkout -- .qmlls.ini` before every
 commit, and never stage it.
 
-Fifteen verification scripts live in `scripts/`. `verify-docs.sh` is the odd one
+Sixteen verification scripts live in `scripts/`. `verify-docs.sh` is the odd one
 out: every other one works by launching the shell and reading its log, because
 for QML the framework's only failure signal is the log.
 
@@ -192,6 +192,11 @@ for QML the framework's only failure signal is the log.
   `PersistentProperties` in services and a local `doNotDisturb` default on the
   service. At runtime it reads smoke contract probes, writes DND on a first
   run with no state file, and requires a second launch to read it back.
+- `scripts/verify-idle-lock-indicator.sh` checks the idle-lock indicator:
+  registry name `idle-lock`, widget on `SimpleBarWidget`, read and toggle only
+  through `/usr/local/bin/nosarch/nosarch-session` with the inverted semantics
+  documented in the widget file, smoke instantiation, and a contract probe that
+  compares `willLock` against the helper's live `idle-lock status` output.
 
 What remains true from the old note: **the process itself still exits 0 even
 when every binding throws**, so a QML syntax or type error only surfaces at
