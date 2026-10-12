@@ -16,4 +16,7 @@ MemoryWidget MemoryWidget.qml
 BatteryWidget BatteryWidget.qml
 BluetoothWidget BluetoothWidget.qml
 PlayerWidget PlayerWidget.qml
+Launcher Launcher.qml
+Workspaces Workspaces.qml
+Tray Tray.qml
 singleton WidgetRegistry 1.0 WidgetRegistry.qml

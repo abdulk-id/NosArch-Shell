@@ -55,7 +55,10 @@ Singleton {
         "memory": "MemoryWidget.qml",
         "battery": "BatteryWidget.qml",
         "bluetooth": "BluetoothWidget.qml",
-        "player": "PlayerWidget.qml"
+        "player": "PlayerWidget.qml",
+        "launcher": "Launcher.qml",
+        "workspaces": "Workspaces.qml",
+        "tray": "Tray.qml"
     })
 
     // Every registered name, sorted — for logging and for the smoke readout.

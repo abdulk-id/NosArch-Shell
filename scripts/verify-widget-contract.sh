@@ -282,7 +282,9 @@ failed = [(t[1], t[2], ' '.join(t[3:])) for ln in lines
 
 # The contract's own types, which is what this ticket added to the plan.
 contract = ['BarWidget.qml', 'SimpleBarWidget.qml', 'WidgetRegistry.qml',
-            'ClockWidget.qml', 'PlayerWidget.qml']
+            'ClockWidget.qml', 'VolumeWidget.qml', 'CpuWidget.qml',
+            'MemoryWidget.qml', 'BatteryWidget.qml', 'BluetoothWidget.qml',
+            'PlayerWidget.qml', 'Launcher.qml', 'Workspaces.qml', 'Tray.qml']
 rc = 0
 print(f"    contract widgets ({len(contract)}):")
 for name in contract:

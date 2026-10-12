@@ -212,6 +212,15 @@ Item {
         return widget.optionDefaults === undefined ? undefined : widget.optionDefaults[name]
     }
 
+    // ---- clicks the content handles itself ---------------------------------
+    //
+    // Workspaces and the tray place their own MouseAreas inside `content` (one
+    // per workspace, one per icon with three buttons). The contract's overlay
+    // MouseArea sits above the Loader and would swallow those clicks if it
+    // accepted them. Widgets that handle clicks internally set this true; the
+    // overlay then tracks hover and tooltip only.
+    property bool contentHandlesClicks: false
+
     // ---- the hover affordance (contract-owned, never re-implemented) -------
     property real dimOpacity: 0.55
     property real brightOpacity: 1.0
@@ -237,6 +246,7 @@ Item {
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
+        acceptedButtons: widget.contentHandlesClicks ? Qt.NoButton : Qt.AllButtons
 
         onClicked: widget.activate(widget)
 

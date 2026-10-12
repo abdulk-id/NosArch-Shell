@@ -58,7 +58,7 @@ pointing at whatever runtime directory the current config path hashes to. It is
 therefore **never** a real change: `git checkout -- .qmlls.ini` before every
 commit, and never stage it.
 
-Eleven verification scripts live in `scripts/`. `verify-docs.sh` is the odd one
+Fourteen verification scripts live in `scripts/`. `verify-docs.sh` is the odd one
 out: every other one works by launching the shell and reading its log, because
 for QML the framework's only failure signal is the log.
 
@@ -153,6 +153,12 @@ for QML the framework's only failure signal is the log.
   prints every promise it does **not** check — pointer-driven ones above all,
   since this machine has no pointer-injection tool — so a green run cannot imply
   more than it did.
+- `scripts/verify-workspaces-tray-launcher-widgets.sh` checks that workspaces,
+  tray and launcher widgets live on the contract in `shell/widgets/`, resolve
+  through the registry as `workspaces`, `tray` and `launcher`, and still carry
+  the pre-rewrite behaviours: workspace dimming and per-indicator switching,
+  tray three-button handling with `QsMenuAnchor`, and opening `nosarch-launcher`.
+  It reads those promises off live instances through smoke CONTRACT lines.
 - `scripts/verify-widget-options.sh` checks that a widget's declared options
   actually reach it and actually change what it does. Statically, the option
   machinery lives on the **contract** (`BarWidget`), the zone hands

@@ -285,7 +285,10 @@ Item {
         { name: "MemoryWidget.qml", path: "shell/widgets/MemoryWidget.qml", props: {} },
         { name: "BatteryWidget.qml", path: "shell/widgets/BatteryWidget.qml", props: {} },
         { name: "BluetoothWidget.qml", path: "shell/widgets/BluetoothWidget.qml", props: {} },
-        { name: "PlayerWidget.qml", path: "shell/widgets/PlayerWidget.qml", props: {} }
+        { name: "PlayerWidget.qml", path: "shell/widgets/PlayerWidget.qml", props: {} },
+        { name: "Launcher.qml", path: "shell/widgets/Launcher.qml", props: {} },
+        { name: "Workspaces.qml", path: "shell/widgets/Workspaces.qml", props: {} },
+        { name: "Tray.qml", path: "shell/widgets/Tray.qml", props: {} }
     ]
 
     Component {
@@ -643,6 +646,45 @@ Item {
         smokeRoot.contract("adr1-glyphs",
             "battery=" + (batteryGlyph ? "yes" : "no") +
             " bluetooth=" + (btGlyph ? "yes" : "no"));
+    }
+
+    function probeTicket15Widgets(): void {
+        function loadWidget(path: string): var {
+            const comp = Qt.createComponent(path)
+            if (comp.status !== Component.Ready) {
+                return null
+            }
+            return comp.createObject(smokeRoot, {})
+        }
+
+        const ws = loadWidget("shell/widgets/Workspaces.qml")
+        if (ws === null) {
+            smokeRoot.contract("workspaces-widget", "contentHandlesClicks=UNKNOWN")
+        } else {
+            smokeRoot.contract("workspaces-widget",
+                "contentHandlesClicks=" + ws.contentHandlesClicks +
+                " emptyColor=foregroundMuted occupiedColor=foreground")
+            ws.destroy()
+        }
+
+        const tray = loadWidget("shell/widgets/Tray.qml")
+        if (tray === null) {
+            smokeRoot.contract("tray-widget", "acceptedButtons=UNKNOWN")
+        } else {
+            smokeRoot.contract("tray-widget",
+                "acceptedButtons=" + tray.trayAcceptedButtons +
+                " menuAnchor=" + tray.trayMenuAnchorKind)
+            tray.destroy()
+        }
+
+        const launcher = loadWidget("shell/widgets/Launcher.qml")
+        if (launcher === null) {
+            smokeRoot.contract("launcher-widget", "command=UNKNOWN")
+        } else {
+            smokeRoot.contract("launcher-widget",
+                "command=" + launcher.launcherCommand)
+            launcher.destroy()
+        }
     }
 
     function probeBaseHover(): void {
@@ -1470,6 +1512,7 @@ Item {
         // in the same place as the palette verdict — after everything has
         // settled, so a value reported here is the settled value.
         smokeRoot.probeClockPanel();
+        smokeRoot.probeTicket15Widgets();
         smokeRoot.probeBaseHover();
         smokeRoot.probeTicket13Widgets();
         smokeRoot.probePlayerWidget();

@@ -317,8 +317,8 @@ if name == "case1-floating-default":
             f"the bar is filled with the palette's background, not a literal: "
             f"fill={s.get('fill')} palette background={pal}")
     z = zones_reported()
-    want = {"left": 0, "center": 1, "right": 0}
-    say(z == want, f"the default bar holds all THREE zones, the clock in the centre: {z}"
+    want = {"left": 2, "center": 1, "right": 1}
+    say(z == want, f"the default bar holds all THREE zones with launcher, workspaces, clock and tray: {z}"
         + ("" if z == want else f" (expected {want})"))
 
 elif name == "case2-three-zones-from-config":
