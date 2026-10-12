@@ -1,0 +1,107 @@
+import QtQml
+import QtQuick
+import Quickshell
+
+import "."
+import "../ui" as UI
+
+// ClockWidget — time and date (ticket 06).
+//
+// The first widget on the contract, and the one the contract's optionality is
+// easiest to check against: a clock has no panel, so it declares NO panelContent
+// at all. It does not pass an empty Component. `hasPanel` therefore reads false
+// for free, which is the point — a widget that has nothing to offer says
+// nothing, and the shell learns that from the absence rather than from a value
+// it had to be taught to ignore.
+//
+// It also has no click action of its own to offer, so `activate` is an explicit
+// no-op rather than an unimplemented-looking gap: the contract requires every
+// widget to declare one, and declaring "this widget does nothing on click" is
+// the honest answer for a clock. (A future calendar panel would replace it.)
+//
+// It extends BarWidget directly rather than SimpleBarWidget because its content
+// is a time, a rule and a date — not one label — so this is not a trivial
+// label-plus-click widget.
+BarWidget {
+    id: clock
+
+    // A clock's tooltip is the thing the bar does not already show: the date in
+    // full. Overridden here rather than inherited, because the contract's
+    // default would be wrong for it.
+    tooltip: Qt.formatDate(systemClock.date, "dddd, d MMMM yyyy")
+
+    // Declared, because the contract requires every widget to supply it.
+    activate: function (widget) {}
+
+    // ---- the time ---------------------------------------------------------
+    //
+    // SystemClock with Minutes precision is the whole mechanism: it re-reads the
+    // system time at that granularity, so the clock cannot show a stale time.
+    // Not a Timer polling Date.now() — that is the pattern that drifts and
+    // needs a drift-correction nobody writes.
+    SystemClock {
+        id: systemClock
+        precision: SystemClock.Minutes
+    }
+
+    // The cadence is READ BACK OFF the live SystemClock rather than restating
+    // the literal above, so it reports what the widget actually does: change
+    // `precision` to Seconds and this reports Seconds, and the check fails.
+    // A hardcoded "Minutes" here would pass no matter what the clock did.
+    readonly property string clockCadence: systemClock.precision === SystemClock.Minutes
+        ? "Minutes"
+        : (systemClock.precision === SystemClock.Seconds ? "Seconds"
+            : (systemClock.precision === SystemClock.Milliseconds ? "Milliseconds" : "UNKNOWN"))
+
+    // Time follows the user's locale, so the shell reads the way their machine is
+    // configured rather than imposing one. `Locale.ShortFormat` is the correct
+    // spelling on this build: Qt.TimeFormat does NOT exist (the v0.3.0 docs and
+    // habit suggest it), and using it fails at RUN time with "Cannot read
+    // property 'ShortFormat' of undefined" — which is exactly the class of
+    // failure the smoke log check exists to catch. Locale lives in QtQml.
+    readonly property var shortTimeFormat: Qt.locale().timeFormat(Locale.ShortFormat)
+    readonly property var shortDateFormat: Qt.locale().dateFormat(Locale.ShortFormat)
+
+    readonly property string timeText: Qt.formatTime(systemClock.date, clock.shortTimeFormat)
+    // Numeric short date (e.g. 12/10/2026) — the tooltip below carries the long
+    // human form, so the two together say the same thing at two resolutions.
+    readonly property string dateText: Qt.formatDate(systemClock.date, clock.shortDateFormat)
+
+    // The content: time, a separator, then the date. Reads outside the content
+    // Component so the bar can be told what the clock says without reaching
+    // into the Loader.
+    content: Component {
+        Row {
+            spacing: 6
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+
+                text: clock.timeText
+                color: UI.Colors.foreground
+                font {
+                    family: UI.Fonts.fontFamily
+                    pixelSize: UI.Fonts.fontSize
+                }
+            }
+
+            Rectangle {
+                anchors.verticalCenter: parent.verticalCenter
+                width: 1
+                height: UI.Fonts.fontSize
+                color: UI.Colors.foregroundMuted
+            }
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+
+                text: clock.dateText
+                color: UI.Colors.foregroundMuted
+                font {
+                    family: UI.Fonts.fontFamily
+                    pixelSize: UI.Fonts.fontSize
+                }
+            }
+        }
+    }
+}
