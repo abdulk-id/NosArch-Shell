@@ -63,6 +63,8 @@ import "shell/widgets" as Widgets
 // reader and its failure policy part of every smoke run.
 import "shell/bar" as Bar
 
+import "shell/state" as State
+
 Item {
     id: smokeRoot
 
@@ -198,6 +200,7 @@ Item {
         Services.BluetoothService,
         Services.Media,
         Services.NetworkService,
+        State.ShellState,
         Services.NotificationService
     ]
 
@@ -238,7 +241,8 @@ Item {
             singleton: true,
             probe: "probeWidgetRegistry"
         },
-        { name: "ClockWidget.qml", path: "shell/widgets/ClockWidget.qml", props: {} }
+        { name: "ClockWidget.qml", path: "shell/widgets/ClockWidget.qml", props: {} },
+        { name: "NotificationWidget.qml", path: "shell/widgets/NotificationWidget.qml", props: {} }
     ]
 
     Component {
@@ -260,6 +264,12 @@ Item {
     // widgets would pass whether or not the zone works.
 
     readonly property var configPlan: [
+        {
+            name: "ShellState.qml",
+            path: "shell/state/ShellState.qml",
+            props: {},
+            singleton: true
+        },
         {
             name: "BarConfig.qml",
             path: "shell/bar/BarConfig.qml",
@@ -453,6 +463,33 @@ Item {
             " cadence=" + clock.clockCadence +
             " tooltip=\"" + clock.tooltip + "\"");
         clock.destroy();
+    }
+
+    function probeNotificationWidget(): void {
+        const comp = Qt.createComponent("shell/widgets/NotificationWidget.qml")
+        if (comp.status !== Component.Ready) {
+            smokeRoot.contract("notification-source", "service=UNKNOWN widget=UNKNOWN")
+            smokeRoot.contract("notification-dnd-visual", "role=UNKNOWN")
+            smokeRoot.contract("notification-waiting", "count=UNKNOWN")
+            return
+        }
+        const w = comp.createObject(smokeRoot, {})
+        if (w === null) {
+            smokeRoot.contract("notification-source", "service=UNKNOWN widget=UNKNOWN")
+            smokeRoot.contract("notification-dnd-visual", "role=UNKNOWN")
+            smokeRoot.contract("notification-waiting", "count=UNKNOWN")
+            return
+        }
+        const svcDnd = Services.NotificationService.doNotDisturb
+        smokeRoot.contract("notification-source",
+            "service=" + svcDnd + " widget=" + w.doNotDisturb)
+        smokeRoot.contract("notification-dnd-visual",
+            "role=" + w.visualRole + " dnd=" + w.doNotDisturb +
+            " icon=" + w.indicatorIcon)
+        smokeRoot.contract("notification-waiting",
+            "count=" + Services.NotificationService.count +
+            " hasWaiting=" + w.hasWaiting + " role=" + w.visualRole)
+        w.destroy()
     }
 
     function probeBaseHover(): void {
@@ -731,10 +768,10 @@ Item {
     Component.onCompleted: {
         // Touch the singleton list so it is evaluated right now (not on first
         // read) and so a drift between this file and services/qmldir is loud.
-        if (smokeRoot.serviceSingletons.length !== 6) {
+        if (smokeRoot.serviceSingletons.length !== 7) {
             console.warn("SMOKE FAIL service-list — smoke.qml touches " +
-                smokeRoot.serviceSingletons.length + " singletons, expected 6; " +
-                "add the new service to servicePlan and this list");
+                smokeRoot.serviceSingletons.length + " singletons, expected 7; " +
+                "add the new singleton to servicePlan / serviceSingletons and configPlan");
         }
         console.info("SMOKE BEGIN pid " + Quickshell.processId +
             " · hardware cap " + smokeRoot.hardwareCapMs + "ms · final settle " + smokeRoot.finalSettleMs + "ms");
@@ -945,6 +982,7 @@ Item {
         // settled, so a value reported here is the settled value.
         smokeRoot.probeClockPanel();
         smokeRoot.probeBaseHover();
+        smokeRoot.probeNotificationWidget();
 
         // The bar's contents (ticket 07): the reader's verdict has already been
         // logged by the singleton itself, so what is added here is that live

@@ -51,7 +51,7 @@ pointing at whatever runtime directory the current config path hashes to. It is
 therefore **never** a real change: `git checkout -- .qmlls.ini` before every
 commit, and never stage it.
 
-Nine verification scripts live in `scripts/`. `verify-docs.sh` is the odd one
+Ten verification scripts live in `scripts/`. `verify-docs.sh` is the odd one
 out: every other one works by launching the shell and reading its log, because
 for QML the framework's only failure signal is the log.
 
@@ -141,6 +141,13 @@ for QML the framework's only failure signal is the log.
   declare, cost only that key, and leave the widget built; and `{ "type":
   "clock" }` with no options at all — the format shipped by ticket 07 — must
   still work.
+- `scripts/verify-notification-widget-and-state.sh` checks the notification
+  indicator on the widget contract, persisted do-not-disturb through
+  `Quickshell.statePath`, and a single source of truth shared by
+  `NotificationService` and the widget. Statically it rejects
+  `PersistentProperties` in services and a local `doNotDisturb` default on the
+  service. At runtime it reads smoke contract probes, writes DND on a first
+  run with no state file, and requires a second launch to read it back.
 
 What remains true from the old note: **the process itself still exits 0 even
 when every binding throws**, so a QML syntax or type error only surfaces at
