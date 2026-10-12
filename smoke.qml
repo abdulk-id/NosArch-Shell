@@ -153,9 +153,9 @@ Item {
                 "\" · connected device: " + Services.BluetoothService.hasDeviceConnected
         },
         {
-            name: "Media",
+            name: "MediaService",
             read: () => {
-                const m = Services.Media;
+                const m = Services.MediaService;
                 if (!m.isAvailable) {
                     return "no active player";
                 }
@@ -196,7 +196,7 @@ Item {
         Services.SystemInfo,
         Services.AudioService,
         Services.BluetoothService,
-        Services.Media,
+        Services.MediaService,
         Services.NetworkService,
         Services.NotificationService
     ]
@@ -238,7 +238,8 @@ Item {
             singleton: true,
             probe: "probeWidgetRegistry"
         },
-        { name: "ClockWidget.qml", path: "shell/widgets/ClockWidget.qml", props: {} }
+        { name: "ClockWidget.qml", path: "shell/widgets/ClockWidget.qml", props: {} },
+        { name: "PlayerWidget.qml", path: "shell/widgets/PlayerWidget.qml", props: {} }
     ]
 
     Component {
@@ -430,6 +431,34 @@ Item {
         const bogusComp = reg.componentFor(bogus);
         smokeRoot.contract("registry-rejected",
             "name=" + bogus + " resolves=" + (bogusComp === null ? "no" : "YES-UNEXPECTEDLY"));
+    }
+
+    function probePlayerWidget(): void {
+        const comp = Qt.createComponent("shell/widgets/PlayerWidget.qml");
+        if (comp.status !== Component.Ready) {
+            smokeRoot.contract("player-widget",
+                "available=UNKNOWN nowPlaying=UNKNOWN action=UNKNOWN");
+            return;
+        }
+        const w = comp.createObject(smokeRoot, {});
+        if (w === null) {
+            smokeRoot.contract("player-widget",
+                "available=UNKNOWN nowPlaying=UNKNOWN action=UNKNOWN");
+            return;
+        }
+        smokeRoot.contract("player-widget",
+            "available=" + w.playerAvailable +
+            " nowPlaying=\"" + w.nowPlayingText + "\"" +
+            " display=\"" + w.barDisplayText + "\"" +
+            " action=togglePlayPause");
+        w.destroy();
+    }
+
+    function probeMediaServiceRename(): void {
+        const planNames = smokeRoot.servicePlan.map(s => s.name);
+        const hasOld = planNames.indexOf("Media") !== -1;
+        smokeRoot.contract("media-service",
+            "name=MediaService old-name=" + (hasOld ? "present" : "absent"));
     }
 
     function probeClockPanel(): void {
@@ -945,6 +974,8 @@ Item {
         // settled, so a value reported here is the settled value.
         smokeRoot.probeClockPanel();
         smokeRoot.probeBaseHover();
+        smokeRoot.probePlayerWidget();
+        smokeRoot.probeMediaServiceRename();
 
         // The bar's contents (ticket 07): the reader's verdict has already been
         // logged by the singleton itself, so what is added here is that live
