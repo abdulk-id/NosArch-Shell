@@ -51,6 +51,7 @@ Singleton {
         // service: AudioService publishes state, VolumeWidget decides what it
         // looks like (ADR 0001).
         "volume": "VolumeWidget.qml",
+        "network": "NetworkWidget.qml",
         "cpu": "CpuWidget.qml",
         "memory": "MemoryWidget.qml",
         "battery": "BatteryWidget.qml",

@@ -45,6 +45,7 @@
 import QtQuick
 
 import Quickshell
+import Quickshell.Networking
 
 // Registered services (see services/qmldir). Referencing the singletons here
 // is what creates them, so a service that cannot even be constructed fails.
@@ -188,9 +189,11 @@ Item {
             name: "NetworkService",
             read: () => {
                 const n = Services.NetworkService;
-                return "iface " + (n.activeInterface || "none") + " \"" + n.textIcon +
-                    "\" · rx " + n.rxSpeedText + " · tx " + n.txSpeedText +
-                    " · ip " + (n.ipAddress || "none");
+                return "iface " + (n.activeInterface || "none")
+                    + " · rx " + n.rxSpeed + " B/s · tx " + n.txSpeed + " B/s"
+                    + " · ip " + (n.ipAddress || "none")
+                    + " · glyph \"" + smokeRoot.networkIcon.glyph + "\""
+                    + " via NetworkIcon";
             }
         },
         {
@@ -213,6 +216,7 @@ Item {
     // tree: it is a QtObject and draws nothing (ADR 0001 — a service may not
     // import the palette, so the glyph cannot live in one).
     readonly property var volumeIcon: Components.VolumeIcon {}
+    readonly property var networkIcon: Components.NetworkIcon {}
 
     // Constructed NOW, not at first use: a singleton is born when something
     // first references it, and the first widget to reference it would pay the
@@ -283,6 +287,13 @@ Item {
             props: {},
             perScreenCoordinator: true,
             probe: "probeVolumeWidget"
+        },
+        {
+            name: "NetworkWidget.qml",
+            path: "shell/widgets/NetworkWidget.qml",
+            props: {},
+            perScreenCoordinator: true,
+            probe: "probeNetworkWidget"
         },
         { name: "CpuWidget.qml", path: "shell/widgets/CpuWidget.qml", props: {} },
         { name: "MemoryWidget.qml", path: "shell/widgets/MemoryWidget.qml", props: {} },
@@ -508,6 +519,11 @@ Item {
             // stopped loading, both fail here rather than at the first click.
             name: "VolumeIcon.qml",
             path: "components/VolumeIcon.qml",
+            props: {}
+        },
+        {
+            name: "NetworkIcon.qml",
+            path: "components/NetworkIcon.qml",
             props: {}
         }
     ]
@@ -1231,6 +1247,111 @@ Item {
         }
     }
 
+    function probeNetworkWidget(): void {
+        const comp = Qt.createComponent("shell/widgets/NetworkWidget.qml")
+        if (comp.status !== Component.Ready) {
+            smokeRoot.contract("network-widget", "UNKNOWN (failed to load)")
+            return
+        }
+        const coordinator = smokeRoot.makeCoordinator("network-probe", smokeRoot)
+        const w = comp.createObject(smokeRoot, { panelCoordinator: coordinator })
+        if (w === null) {
+            smokeRoot.contract("network-widget", "UNKNOWN (would not construct)")
+            return
+        }
+
+        const decision = smokeRoot.networkIcon
+        const portalGlyph = decision.glyphFor(
+            NetworkConnectivity.Portal, 1, 0.5, true, true)
+        const connectedGlyph = decision.glyphFor(
+            NetworkConnectivity.Full, 1, 0.75, true, true)
+        const noHardwareGlyph = decision.glyphFor(
+            NetworkConnectivity.None, 0, 0, false, false)
+        const portalDistinct = portalGlyph !== connectedGlyph
+        const noHardwareGraceful = noHardwareGlyph.length > 0
+            && noHardwareGlyph !== connectedGlyph
+            && noHardwareGlyph !== portalGlyph
+
+        const listsNetworks = typeof w.refreshNetworkLists === "function"
+        const showsThroughput = decision.rxSpeedText.length > 0
+            && decision.formatSpeed(1024).indexOf("KB/s") !== -1
+
+        smokeRoot.contract("network-widget",
+            "hasPanel=" + w.hasPanel
+            + " panelContent=" + (w.panelContent === null ? "null" : "SUPPLIED")
+            + " panelId=" + (w.panelId === undefined ? "UNDEFINED" : w.panelId)
+            + " coordinator-handed-over=" + (w.panelCoordinator !== null)
+            + " portal=\"" + portalGlyph + "\""
+            + " connected=\"" + connectedGlyph + "\""
+            + " no-hardware=\"" + noHardwareGlyph + "\""
+            + " portal-distinct-from-connected=" + portalDistinct
+            + " no-hardware-graceful=" + noHardwareGraceful
+            + " panel-lists-networks=" + listsNetworks
+            + " panel-shows-throughput=" + showsThroughput
+            + " · live: " + decision.describe())
+
+        w.togglePanel(w.panelId)
+        const opened = coordinator.openId === w.panelId && coordinator.ownsInput
+        w.togglePanel(w.panelId)
+        const closedAgain = !coordinator.hasOpenPanel && !coordinator.ownsInput
+
+        smokeRoot.contract("network-panel-toggle",
+            "widget-opens=" + opened + " widget-toggles-closed=" + closedAgain
+            + " id=" + w.panelId)
+
+        w.destroy()
+        if (coordinator !== null) {
+            coordinator.destroy()
+        }
+    }
+
+    function probeVolumeNetworkPanelSwitch(): void {
+        const volComp = Qt.createComponent("shell/widgets/VolumeWidget.qml")
+        const netComp = Qt.createComponent("shell/widgets/NetworkWidget.qml")
+        if (volComp.status !== Component.Ready || netComp.status !== Component.Ready) {
+            smokeRoot.contract("volume-network-panel-switch", "UNKNOWN (failed to load)")
+            return
+        }
+        const coordinator = smokeRoot.makeCoordinator("switch-probe", smokeRoot)
+        const anchor = Qt.createComponent("components/Separator.qml").createObject(smokeRoot, {
+            separatorHeight: 4, separatorColor: "#000000"
+        })
+        const volume = volComp.createObject(smokeRoot, { panelCoordinator: coordinator })
+        const network = netComp.createObject(smokeRoot, { panelCoordinator: coordinator })
+        if (volume === null || network === null) {
+            smokeRoot.contract("volume-network-panel-switch", "UNKNOWN (would not construct)")
+            return
+        }
+
+        volume.togglePanel(volume.panelId)
+        const volumeOpen = coordinator.openId === volume.panelId && coordinator.ownsInput
+
+        network.togglePanel(network.panelId)
+        const volumeToNetwork = volumeOpen
+            && coordinator.openId === network.panelId
+            && coordinator.ownsInput
+
+        volume.togglePanel(volume.panelId)
+        const networkToVolume = coordinator.openId === volume.panelId
+            && coordinator.ownsInput
+
+        const oneAtATime = coordinator.openId !== ""
+            && !(coordinator.openId === volume.panelId && coordinator.openId === network.panelId)
+
+        smokeRoot.contract("volume-network-panel-switch",
+            "volume-to-network-one-click=" + volumeToNetwork
+            + " network-to-volume-one-click=" + networkToVolume
+            + " one-panel-at-a-time=" + oneAtATime
+            + " final=" + coordinator.openId)
+
+        volume.destroy()
+        network.destroy()
+        if (anchor !== null) {
+            anchor.destroy()
+        }
+        coordinator.destroy()
+    }
+
     // ------------------------------------------------- per-widget options probe
     //
     // Ticket 09's seam: read off REAL widgets built by the REAL zone from a
@@ -1577,6 +1698,8 @@ Item {
         smokeRoot.probePanelCoordinator();
         smokeRoot.probePanelCard();
         smokeRoot.probeVolumeWidget();
+        smokeRoot.probeNetworkWidget();
+        smokeRoot.probeVolumeNetworkPanelSwitch();
 
         // Services: create each singleton (via the qmldir registration) and
         // read the leaves the shell consumes.

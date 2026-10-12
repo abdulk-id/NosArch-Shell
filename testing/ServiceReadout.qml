@@ -23,9 +23,12 @@ import Quickshell
 import Quickshell.Wayland
 
 import "../services" as Services
+import "../components" as Components
 
 PanelWindow {
     id: root
+
+    readonly property var networkReadoutIcon: Components.NetworkIcon {}
 
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
@@ -146,7 +149,7 @@ PanelWindow {
             Text {
                 color: "white"
                 font.family: "JetbrainsMono Nerd Font"
-                text: parent.row("Network Icon", Services.NetworkService.textIcon)
+                text: parent.row("Network Icon", networkReadoutIcon.glyph)
             }
 
             Rectangle {

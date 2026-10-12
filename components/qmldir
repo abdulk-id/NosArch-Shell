@@ -3,4 +3,5 @@ Separator Separator.qml
 ProgressOSDItem ProgressOSDItem.qml
 PopupState PopupState.qml
 VolumeIcon VolumeIcon.qml
+NetworkIcon NetworkIcon.qml
 

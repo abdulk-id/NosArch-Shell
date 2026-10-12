@@ -157,6 +157,7 @@ Singleton {
                 ],
                 "right": [
                     { "type": "tray" },
+                    { "type": "network" },
                     { "type": "volume" }
                 ]
             }

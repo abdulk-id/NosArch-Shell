@@ -19,6 +19,8 @@ Item {
     required property Components.PopupState popupState
     property PanelWindow topIsland
 
+    readonly property var networkIcon: Components.NetworkIcon {}
+
     readonly property string popupId: "network"
 
     // Module UI ===
@@ -28,13 +30,13 @@ Item {
     Text {
         id: networkText
 
-        text: Services.NetworkService.textIcon
+        text: networkModule.networkIcon.glyph
         color: {
             let connectivity = Networking.connectivity;
             if (connectivity === NetworkConnectivity.None || connectivity === NetworkConnectivity.Unknown) {
                 return UI.Colors.foregroundMuted;
             } else if (connectivity === NetworkConnectivity.Limited || connectivity === NetworkConnectivity.Portal) {
-                return "#ffb86c";
+                return UI.Colors.accent;
             }
             return UI.Colors.foreground;
         }
@@ -143,7 +145,7 @@ Item {
 
                             anchors.centerIn: parent
 
-                            text: Services.NetworkService.textIcon
+                            text: networkModule.networkIcon.glyph
                             color: UI.Colors.foreground
                             font {
                                 family: UI.Fonts.fontFamily
@@ -450,7 +452,7 @@ Item {
                         Text {
                             id: downloadSpeedText
 
-                            text: "Download: " + (Services.NetworkService.rxSpeedText || "--")
+                            text: "Download: " + (networkModule.networkIcon.rxSpeedText || "--")
                             color: UI.Colors.foregroundSecondary
                             font {
                                 family: UI.Fonts.fontFamily
@@ -466,7 +468,7 @@ Item {
                         Text {
                             id: uploadSpeedText
 
-                            text: "Upload: " + (Services.NetworkService.txSpeedText || "--")
+                            text: "Upload: " + (networkModule.networkIcon.txSpeedText || "--")
                             color: UI.Colors.foregroundSecondary
                             font {
                                 family: UI.Fonts.fontFamily
@@ -911,7 +913,7 @@ Item {
             }
 
             let signalIndex = Math.min(Math.floor(network.signalStrength * 4), 4);
-            let icon = Services.NetworkService.wifiIcons[signalIndex];
+            let icon = networkModule.networkIcon.signalIconFor(network.signalStrength);
 
             let entry = {
                 "name": network.name,
