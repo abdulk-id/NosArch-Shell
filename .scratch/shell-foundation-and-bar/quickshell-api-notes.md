@@ -563,3 +563,30 @@ Reload-scope types available: `Scope` (propagates reloads to children in order),
 | `Repeater` as a shell-per-screen tool | — | works, but needs `import QtQuick` and an `Item` delegate; `Variants` is the idiomatic non-Item route | use `Variants` |
 
 Confidence: **all 11 topics verified against the installed 0.3.2 binary** by compiling throwaway configs against it and by reading its registered QML type metadata and the v0.3.2 vendor source. Nothing in this file is docs-only except the `Repeater`-as-model caveat and a few enum orderings that came from the `.qmltypes` rather than a runtime probe (those match the vendor source exactly, so they carry the same confidence in practice).
+
+---
+
+## Addendum — found while implementing tickets 05 and 06 (CONFIRMED-0.3.2)
+
+These three cost real time and are not in the numbered sections above.
+
+1. **`Qt.TimeFormat` does not exist.** Reading it fails at *run* time with
+   `Cannot read property 'ShortFormat' of undefined` — the same shape of
+   failure as the `WlrKeyboardFocus.Exact` trap in section 6, and just as
+   silent in a static read. The correct spelling is `Locale.ShortFormat` from
+   `import QtQml` (or a bare `Qt.locale()` call). This bit the clock widget's
+   time formatting.
+
+2. **A `qmldir` is what makes sibling imports resolve.** Widget files in the
+   same directory referencing each other (`import "."`) fail with
+   `SimpleBase is not a type` unless that directory has a `qmldir`. This is
+   why `shell/widgets/qmldir` exists and must list every widget type.
+
+3. **`createObject()` on a `pragma Singleton` returns `null`.** Instantiating a
+   singleton that way reports a false failure. Construct singletons by
+   *reference* (importing them), never by `createObject`.
+
+Also worth carrying forward: `verify-launch-reload.sh` copies `shell/`,
+`services/` and `components/` into its scratch config but **not** the repo
+root, so it will need `shell/widgets/` included once the bar composes
+contract widgets (tickets 07/08).
