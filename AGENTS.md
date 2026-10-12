@@ -51,7 +51,7 @@ pointing at whatever runtime directory the current config path hashes to. It is
 therefore **never** a real change: `git checkout -- .qmlls.ini` before every
 commit, and never stage it.
 
-Nine verification scripts live in `scripts/`. `verify-docs.sh` is the odd one
+Ten verification scripts live in `scripts/`. `verify-docs.sh` is the odd one
 out: every other one works by launching the shell and reading its log, because
 for QML the framework's only failure signal is the log.
 
@@ -141,6 +141,11 @@ for QML the framework's only failure signal is the log.
   declare, cost only that key, and leave the widget built; and `{ "type":
   "clock" }` with no options at all — the format shipped by ticket 07 — must
   still work.
+- `scripts/verify-idle-lock-indicator.sh` checks the idle-lock indicator:
+  registry name `idle-lock`, widget on `SimpleBarWidget`, read and toggle only
+  through `/usr/local/bin/nosarch/nosarch-session` with the inverted semantics
+  documented in the widget file, smoke instantiation, and a contract probe that
+  compares `willLock` against the helper's live `idle-lock status` output.
 
 What remains true from the old note: **the process itself still exits 0 even
 when every binding throws**, so a QML syntax or type error only surfaces at

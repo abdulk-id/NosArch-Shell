@@ -44,7 +44,8 @@ Singleton {
     // name → file name, relative to this directory. NOT a path: never a
     // leading slash, never a "..", never a directory. Scripts assert this.
     readonly property var entries: ({
-        "clock": "ClockWidget.qml"
+        "clock": "ClockWidget.qml",
+        "idle-lock": "IdleLockWidget.qml"
     })
 
     // Every registered name, sorted — for logging and for the smoke readout.

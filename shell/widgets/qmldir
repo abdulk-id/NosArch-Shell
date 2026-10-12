@@ -10,4 +10,5 @@
 BarWidget BarWidget.qml
 SimpleBarWidget SimpleBarWidget.qml
 ClockWidget ClockWidget.qml
+IdleLockWidget IdleLockWidget.qml
 singleton WidgetRegistry 1.0 WidgetRegistry.qml

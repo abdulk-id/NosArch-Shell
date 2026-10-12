@@ -238,7 +238,8 @@ Item {
             singleton: true,
             probe: "probeWidgetRegistry"
         },
-        { name: "ClockWidget.qml", path: "shell/widgets/ClockWidget.qml", props: {} }
+        { name: "ClockWidget.qml", path: "shell/widgets/ClockWidget.qml", props: {} },
+        { name: "IdleLockWidget.qml", path: "shell/widgets/IdleLockWidget.qml", props: {} }
     ]
 
     Component {
@@ -394,6 +395,7 @@ Item {
     //   clock-panel        the clock declares no panel at all
     //   clock-members      the clock carries time + date on a one-minute cadence
     //   base-hover         the base dims when idle and brightens on hover
+    //   idle-lock-widget   reads helper status inverted; toggle via helper only
     //
     // Each probe prints exactly one CONTRACT line per promise.
 
@@ -453,6 +455,61 @@ Item {
             " cadence=" + clock.clockCadence +
             " tooltip=\"" + clock.tooltip + "\"");
         clock.destroy();
+    }
+
+    function probeIdleLockWidget(done): void {
+        const comp = Qt.createComponent("shell/widgets/IdleLockWidget.qml");
+        if (comp.status !== Component.Ready) {
+            smokeRoot.contract("idle-lock-widget", "ERROR=load-" + comp.status);
+            if (done !== undefined && done !== null)
+                done();
+            return;
+        }
+        const w = comp.createObject(smokeRoot, {});
+        if (w === null) {
+            smokeRoot.contract("idle-lock-widget", "ERROR=construct");
+            if (done !== undefined && done !== null)
+                done();
+            return;
+        }
+
+        function report(): void {
+            smokeRoot.contract("idle-lock-widget",
+                "helper=" + w.sessionHelper +
+                " inhibitRunning=" + w.inhibitRunning +
+                " willLock=" + w.willLockWhenIdle +
+                " label=\"" + w.barLabel + "\"" +
+                " toggle=idle-lock/toggle");
+            w.destroy();
+            if (done !== undefined && done !== null)
+                done();
+        }
+
+        if (w.statusKnown) {
+            report();
+            return;
+        }
+
+        w.refreshStatus();
+        let attempts = 0;
+        const timer = Qt.createQmlObject(
+            'import QtQuick; Timer { interval: 50; repeat: true }',
+            smokeRoot,
+            "idleLockProbeTimer");
+        timer.triggered.connect(function () {
+            attempts += 1;
+            if (w.statusKnown || attempts >= 100) {
+                timer.stop();
+                timer.destroy();
+                if (!w.statusKnown)
+                    smokeRoot.contract("idle-lock-widget", "ERROR=status-timeout");
+                else
+                    report();
+                if (done !== undefined && done !== null)
+                    done();
+            }
+        });
+        timer.start();
     }
 
     function probeBaseHover(): void {
@@ -946,6 +1003,14 @@ Item {
         smokeRoot.probeClockPanel();
         smokeRoot.probeBaseHover();
 
+        // Idle-lock (ticket 17): wait for the helper's status before the summary,
+        // because Process output arrives after createObject returns.
+        smokeRoot.probeIdleLockWidget(function () {
+            smokeRoot.finishSmokeSummary();
+        });
+    }
+
+    function finishSmokeSummary(): void {
         // The bar's contents (ticket 07): the reader's verdict has already been
         // logged by the singleton itself, so what is added here is that live
         // zone instances were really built from it, and that a widget which
