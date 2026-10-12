@@ -100,16 +100,6 @@ bt = read("services/BluetoothService.qml")
 if re.search(r"\btextIcon\b", bt):
     fail("BluetoothService.qml still publishes textIcon (ADR 0001)")
 
-for mod, widget_type in (
-    ("shell/topisland/modules/CpuUsageModule.qml", "CpuWidget"),
-    ("shell/topisland/modules/MemoryUsageModule.qml", "MemoryWidget"),
-    ("shell/topisland/modules/BatteryModule.qml", "BatteryWidget"),
-    ("shell/topisland/modules/BluetoothModule.qml", "BluetoothWidget"),
-):
-    t = read(mod)
-    if widget_type not in t:
-        fail(f"{mod} does not delegate to {widget_type}")
-
 cpu = read("shell/widgets/CpuWidget.qml")
 if "nosarch-launch-tui" not in cpu or "btop" not in cpu:
     fail("CpuWidget does not open the system monitor on activate")
@@ -125,7 +115,7 @@ if "textIcon" in bat and re.search(r"Services\.SystemInfo\.battery\.textIcon", b
     fail("BatteryWidget still reads battery textIcon from the service")
 
 if rc == 0:
-    print("PASS — registry, widgets, services, and module migration")
+    print("PASS — registry, widgets, and services")
 else:
     print("FAIL — " + "; ".join(bad))
 sys.exit(rc)

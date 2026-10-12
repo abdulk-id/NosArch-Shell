@@ -19,9 +19,9 @@
 #                  GLOSSARY-FORMAT.md: one title, a `## Language` section, a
 #                  tight definition plus an `_Avoid_:` line for every required
 #                  term, and no `_Avoid_` line that recommends the retired word.
-#   (B) TRUTH    — the three senses the retired word "module" names all still
-#                  exist in the tree, and the "applied to one widget of twelve"
-#                  claim is recomputed rather than trusted.
+#   (B) TRUTH    — the pre-rewrite bar the retired word "module" named is gone,
+#                  the glossary records that retirement honestly, and QML's own
+#                  module directories still exist where the entry says they do.
 #   (C) TRUTH    — ADR 0001's account of presentation in services is true:
 #                  every service that currently publishes a display glyph is
 #                  named, and while any remain the ADR must say the migration
@@ -197,7 +197,7 @@ PY
 #     is applied to fewer widgets than exist.
 # ---------------------------------------------------------------------------
 echo
-echo "[B] the retired word 'module' — are the three senses real? ..."
+echo "[B] the retired word 'module' — is the pre-rewrite bar gone and the entry honest? ..."
 check truth-module - <<'PY'
 import os, re, sys, pathlib
 
@@ -205,85 +205,48 @@ repo = pathlib.Path(os.environ["NOSARCH_DOCS_REPO"])
 gloss = repo / "GLOSSARY.md"
 bad = []
 
-# Sense 1 — the bar widgets, in a directory literally named `modules`.
 moddir = repo / "shell/topisland/modules"
-widgets = sorted(moddir.glob("*.qml")) if moddir.is_dir() else []
-if not widgets:
-    bad.append("shell/topisland/modules/ is gone or empty, so the first sense of "
-               "'module' no longer exists — rewrite or drop the glossary entry")
+if moddir.is_dir() and any(moddir.glob("*.qml")):
+    bad.append("shell/topisland/modules/ still holds widget files — ticket 18 deletes "
+               "the pre-rewrite bar wholesale")
+elif (repo / "shell/topisland/TopIsland.qml").is_file():
+    bad.append("shell/topisland/TopIsland.qml still exists — the pre-rewrite bar is "
+               "not retired")
 else:
-    print(f"  (tree) sense 1 — bar widgets: {len(widgets)} .qml files in "
-          f"shell/topisland/modules/")
+    print("  (tree) pre-rewrite bar: shell/topisland/ is gone")
 
-# Sense 2 — the shared base class, declared in components/qmldir.
 base = repo / "components/TopIslandModule.qml"
-subclasses = []
-if not base.is_file():
-    bad.append("components/TopIslandModule.qml is gone, so the base-class sense of "
-               "'module' no longer exists — rewrite the glossary entry")
+if base.is_file():
+    bad.append("components/TopIslandModule.qml still exists — the pre-rewrite widget "
+               "base is not retired")
 else:
-    qmldir = ((repo / "components/qmldir").read_text()
-              if (repo / "components/qmldir").is_file() else "")
-    if "TopIslandModule" not in qmldir:
-        bad.append("TopIslandModule.qml exists but is not declared in "
-                   "components/qmldir, so it is not the shared base class the "
-                   "glossary claims")
-    skip = {".git", ".scratch", ".agents", ".zed"}
-    for f in repo.rglob("*.qml"):
-        if skip & set(f.parts) or f == base:
-            continue
-        if "TopIslandModule {" in f.read_text(errors="replace"):
-            subclasses.append(f)
-    print(f"  (tree) sense 2 — the base class: TopIslandModule.qml is declared in "
-          f"components/qmldir and is extended by {len(subclasses)} of the "
-          f"{len(widgets)} widget file(s)"
-          + (f" ({', '.join(f.name for f in subclasses)})" if subclasses else ""))
-    if widgets and len(subclasses) >= len(widgets):
-        bad.append(f"every one of the {len(widgets)} widgets now extends the base "
-                   "class, so the 'unapplied abstraction' claim is no longer true "
-                   "— rewrite the glossary entry")
+    print("  (tree) pre-rewrite base: TopIslandModule.qml is gone")
 
-# The glossary's own count is a claim; lock it to the tree.
 if not gloss.is_file():
     bad.append("no GLOSSARY.md, so there is no retired-word entry to check")
-elif True:
+else:
     g = gloss.read_text()
-    m = re.search(r"one widget of (\w+)", g, re.I)
-    if not m:
-        bad.append("the module entry does not quantify the unapplied abstraction "
-                   "('one widget of twelve'), so the claim cannot be checked")
-    else:
-        words = {"two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
-                 "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12}
-        claimed = words.get(m.group(1).lower())
-        if claimed is None:
-            bad.append(f"the module entry says 'one widget of {m.group(1)}', which "
-                       "is not a number this checker can verify")
-        elif claimed != len(widgets):
-            bad.append(f"the module entry claims 'one widget of {m.group(1)}' but "
-                       f"shell/topisland/modules/ holds {len(widgets)} widget files")
-        elif len(subclasses) != 1:
-            bad.append(f"the module entry claims exactly one widget is on the base "
-                       f"class, but {len(subclasses)} files extend it")
+    if not re.search(r"retired", g, re.I):
+        bad.append("the module entry does not say the word is retired")
+    if "shell/topisland/modules/" not in g:
+        bad.append("the module entry no longer names shell/topisland/modules/, so it "
+                   "does not record what was deleted")
+    if "shell/widgets/" not in g:
+        bad.append("the module entry does not point at shell/widgets/ as the widget home")
 
-# Sense 3 — QML's own sense of the word: a directory of types with a qmldir.
 qml_modules = sorted(p.parent.relative_to(repo).as_posix() for p in repo.rglob("qmldir")
                      if not {".scratch", ".agents", ".git"} & set(p.parts))
 if not qml_modules:
     bad.append("no directory in this repo declares a qmldir, so the QML-module "
                "sense of 'module' has nothing to point at")
 else:
-    print(f"  (tree) sense 3 — QML modules: {', '.join(qml_modules)}")
-    if moddir in [p.parent for p in repo.rglob("qmldir")
-                  if not {".scratch", ".agents", ".git"} & set(p.parts)]:
-        bad.append("shell/topisland/modules/ now declares a qmldir, so the directory "
-                   "is a real QML module as well as the widget home")
+    print(f"  (tree) QML module directories: {', '.join(qml_modules)}")
 
 if bad:
     print("FAIL|" + "; ".join(bad))
 else:
-    print("PASS|all three senses of 'module' are real in the tree and the entry's "
-          "count of unapplied widgets matches the tree")
+    print("PASS|the pre-rewrite bar is gone, widgets live on the contract, and the "
+          "glossary records the retirement")
 PY
 
 # ---------------------------------------------------------------------------
@@ -647,12 +610,10 @@ else:
                    "widget location — that is the pre-rewrite home, and the registry "
                    "decides where widgets live")
 
-# Report where widgets actually are, so the reader can see the gap by eye.
-moddir = repo / "shell/topisland/modules"
-files = sorted(p.name for p in moddir.glob("*.qml")) if moddir.is_dir() else []
-print(f"  (tree) bar widgets still at the pre-rewrite path "
-      f"shell/topisland/modules/: {len(files)} file(s)"
-      + (f" — {', '.join(files)}" if files else ""))
+# Report where widgets actually are.
+wdir = repo / "shell/widgets"
+wfiles = sorted(p.name for p in wdir.glob("*.qml") if p.name not in ("BarWidget.qml", "SimpleBarWidget.qml", "WidgetRegistry.qml")) if wdir.is_dir() else []
+print(f"  (tree) contract widgets in shell/widgets/: {len(wfiles)} file(s)")
 
 if bad:
     print("FAIL|" + "; ".join(bad))

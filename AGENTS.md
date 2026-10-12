@@ -58,7 +58,7 @@ pointing at whatever runtime directory the current config path hashes to. It is
 therefore **never** a real change: `git checkout -- .qmlls.ini` before every
 commit, and never stage it.
 
-Sixteen verification scripts live in `scripts/`. `verify-docs.sh` is the odd one
+Eighteen verification scripts live in `scripts/`. `verify-docs.sh` is the odd one
 out: every other one works by launching the shell and reading its log, because
 for QML the framework's only failure signal is the log.
 
@@ -70,6 +70,10 @@ for QML the framework's only failure signal is the log.
 - `scripts/verify-launch-reload.sh` launches the real `shell.qml` by path,
   checks the layer/namespace convention statically, forces a reload and reads
   the fresh-vs-reloaded verdict out of the log.
+- `scripts/verify-real-shell-startup.sh` launches the real `shell.qml` with no
+  configuration file at all, waits for a fresh start and a mapped bar, and fails
+  on any WARN/ERROR line naming a file in this repo — the check that catches
+  wiring errors across all twelve live widgets once real services connect.
 - `scripts/verify-palette.sh` launches `smoke.qml` six times with `HOME`
   pointed at a scratch directory, and asserts the palette's four promises
   against a real filesystem: absent file renders defaults, first run writes
@@ -94,8 +98,8 @@ for QML the framework's only failure signal is the log.
   It then asserts the popup-state arity split is gone: nothing in the tree
   stores a monitor name in popup state, nothing takes or passes a screen, no
   call site has a branch that widens a missing screen to "any monitor", no
-  global `popupStateManager` survives, and a `PopupState` is created inside the
-  per-screen delegate. Finally it launches the real shell under a private bus
+  global `popupStateManager` survives, and a `PanelCoordinator` is created inside
+  the per-screen delegate. Finally it launches the real shell under a private bus
   and **measures**: the framework's attached-screen count beside the bar's own
   live-window count, each live window's name/geometry/namespace read off the
   screen it is bound to, and each reported surface paired against its own

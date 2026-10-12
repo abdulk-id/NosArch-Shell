@@ -103,16 +103,12 @@ elif "togglePlayPause" not in player:
 elif "nowPlayingText" not in player:
     fail("PlayerWidget must expose nowPlayingText for what is playing")
 
-mod = read("shell/topisland/modules/PlayerModule.qml")
-if "PlayerWidget" not in mod:
-    fail("PlayerModule must delegate to PlayerWidget")
-
 osd = read("shell/osds/MediaOsd.qml")
 if "Services.MediaService" not in osd:
     fail("MediaOsd must use Services.MediaService")
 
 if rc == 0:
-    print("PASS — registry, widget, rename, and module migration")
+    print("PASS — registry, widget, and rename")
 else:
     print("FAIL — " + "; ".join(bad))
 sys.exit(rc)

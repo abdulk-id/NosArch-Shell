@@ -443,57 +443,14 @@ Item {
         }
     }
 
-    // ------------------------------------------------------------------ widgets
-    //
-    // The twelve bar modules. Each is instantiated from its own file — the
-    // same load path the bar uses — once per attached screen. The two
-    // panel-takers get a real PopupState, REQUIRED, so instantiating them
-    // without it would fail for a different (and misleading) reason than the
-    // one under test.
-    //
-    // The props here are static, so a popup state cannot be built per screen
-    // from them — which is why instantiateSet passes a per-screen one through
-    // the `popupState` hook below. The static `popupState: popupStateStub`
-    // that used to sit here was worse than useless: it declared a UNIFORM
-    // two-argument set/isActive while the two real callers disagreed with each
-    // other about that arity, so no smoke run could ever have noticed.
-
-    readonly property var widgetPlan: [
-        { name: "ArchIconModule.qml", path: "shell/topisland/modules/ArchIconModule.qml", props: {} },
-        { name: "BatteryModule.qml", path: "shell/topisland/modules/BatteryModule.qml", props: {} },
-        { name: "BluetoothModule.qml", path: "shell/topisland/modules/BluetoothModule.qml", props: {} },
-        { name: "ClockModule.qml", path: "shell/topisland/modules/ClockModule.qml", props: {} },
-        { name: "CpuUsageModule.qml", path: "shell/topisland/modules/CpuUsageModule.qml", props: {} },
-        { name: "MemoryUsageModule.qml", path: "shell/topisland/modules/MemoryUsageModule.qml", props: {} },
-        { name: "NetworkModule.qml", path: "shell/topisland/modules/NetworkModule.qml", props: {} },
-        { name: "NotificationModule.qml", path: "shell/topisland/modules/NotificationModule.qml", props: {} },
-        { name: "PlayerModule.qml", path: "shell/topisland/modules/PlayerModule.qml", props: {} },
-        { name: "SystemTrayModule.qml", path: "shell/topisland/modules/SystemTrayModule.qml", props: {} },
-        { name: "VolumeModule.qml", path: "shell/topisland/modules/VolumeModule.qml", props: {} },
-        { name: "Workspaces.qml", path: "shell/topisland/modules/Workspaces.qml", props: {} }
-    ]
-
-    // Widgets whose popup state must be PER SCREEN, and so cannot come from
-    // the static props above. Named rather than detected, because the property
-    // is required and typed: a widget that needed one and were missing from
-    // this list would fail to construct, which is loud — so the list cannot
-    // quietly rot.
-    readonly property var perScreenPopupWidgets: ["NetworkModule.qml", "VolumeModule.qml"]
-
     // ------------------------------------------------------------------ shared
     // components
     //
-    // components/qmldir: TopIslandModule (the widget base), Separator,
-    // ProgressOSDItem and PopupState. Required properties are supplied with the
-    // values the shell actually passes, so a missing required property is a
-    // real failure.
+    // components/qmldir: Separator, ProgressOSDItem and PopupState. Required
+    // properties are supplied with the values the shell actually passes, so a
+    // missing required property is a real failure.
 
     readonly property var componentPlan: [
-        {
-            name: "TopIslandModule.qml",
-            path: "components/TopIslandModule.qml",
-            props: { content: smokeContent, hasPopup: false, clickable: true, hoverable: true }
-        },
         {
             name: "Separator.qml",
             path: "components/Separator.qml",
@@ -1496,9 +1453,6 @@ Item {
         for (const s of smokeRoot.servicePlan) {
             smokeRoot.plan("service", s.name);
         }
-        for (const w of smokeRoot.widgetPlan) {
-            smokeRoot.plan("widget", w.name);
-        }
         for (const w of smokeRoot.contractWidgetPlan) {
             smokeRoot.plan("widget", w.name);
         }
@@ -1585,18 +1539,6 @@ Item {
     function instantiateSet(screen: string, host: Item): void {
         // Every screen gets its own full set: a widget that only breaks on the
         // second monitor (the class of bug the spec calls out) must fail here.
-        for (const w of smokeRoot.widgetPlan) {
-            // A panel-taker's popup state is built FRESH for this screen and
-            // handed in, which is the property that matters and that the plan
-            // cannot express: two screens' widgets holding one shared state
-            // object is the multi-monitor bug this harness exists to rule out,
-            // so the smoke run would be asserting the wrong shape if it did it.
-            const extra = smokeRoot.perScreenPopupWidgets.indexOf(w.name) >= 0
-                ? { popupState: smokeRoot.makePopupState(screen, host) }
-                : {}
-            smokeRoot.instantiateOne("widget", w.name, w.path, w.props, host, screen,
-                undefined, undefined, undefined, extra)
-        }
         for (const w of smokeRoot.contractWidgetPlan) {
             // A widget that opens a panel needs a coordinator to open it on, and
             // it needs its OWN: a shared one is the multi-monitor bug this

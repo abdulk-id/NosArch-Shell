@@ -158,7 +158,10 @@ Singleton {
                 "right": [
                     { "type": "tray" },
                     { "type": "network" },
-                    { "type": "volume" }
+                    { "type": "bluetooth" },
+                    { "type": "volume" },
+                    { "type": "battery" },
+                    { "type": "notification" }
                 ]
             }
         }

@@ -9,9 +9,8 @@
 #
 # Three checks:
 #   (A) STATIC — the smoke plan covers the whole tree: every singleton and type
-#       in services/qmldir, every module in shell/topisland/modules/, every
-#       contract widget in shell/widgets/qmldir and every component in
-#       components/qmldir must be planned by smoke.qml. A widget that exists but
+#       in services/qmldir, every contract widget in shell/widgets/qmldir and
+#       every component in components/qmldir must be planned by smoke.qml. A widget that exists but
 #       is never instantiated is a silent gap, so the plan is checked against
 #       the tree rather than trusted.
 #   (B) RUNTIME — smoke.qml is launched and every planned item must report
@@ -121,10 +120,6 @@ def planned_config(path_prefix):
 
 sources = (
     ("services/qmldir", set(qmldir_names('services/qmldir')), planned('servicePlan')),
-    ("shell/topisland/modules/", {f.stem for f in (repo / 'shell/topisland/modules').glob('*.qml')}, planned('widgetPlan')),
-    # The contract widgets (ticket 06) live in their own directory with their
-    # own qmldir, and are planned in their own plan block. They are widgets
-    # like any other, so they get the same both-directions coverage.
     ("shell/widgets/qmldir", set(qmldir_names('shell/widgets/qmldir')), planned('contractWidgetPlan')),
     # The bar's own directory (ticket 07): the configuration reader and one
     # zone. Same rule — a type that exists but is never instantiated is a

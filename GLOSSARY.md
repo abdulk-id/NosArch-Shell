@@ -93,10 +93,8 @@ _Avoid_: theme, colours, colourscheme, style, css, skin
 ### Retired
 
 **Module**:
-_RETIRED_ — do not use it for anything new. It names three unrelated things at
-once: the bar widgets, the base class they were meant to share, and QML's own
-sense of a directory of types, which `services/` and `components/` genuinely are.
-Naming the abstraction alongside its instances let that base class reach exactly
-one widget of twelve; the other eleven ignore it.
+_RETIRED_ — do not use it for anything new. It once meant the deleted
+`shell/topisland/modules/` widgets, the unused `TopIslandModule` base, or a QML
+`qmldir` directory; bar widgets now live on the contract in `shell/widgets/`.
 _Avoid_: widget, service, component, base class, contract — and, for a directory
 that declares a `qmldir`, QML's own word for it

@@ -1,8 +1,8 @@
 # Panels are layer-shell overlay surfaces, not framework popups
 
 Status: accepted. The decision is settled and **implemented** (ticket 11). The
-two pre-rewrite popups below remain, because the widgets that use them are
-deleted by ticket 18 rather than by this one.
+pre-rewrite popup-based panels were deleted with the old bar in ticket 18; the
+tree carries no `PopupWindow` panels any more.
 
 A panel is a full-screen `PanelWindow` on the overlay layer with the card drawn
 inside it, not a Quickshell `PopupWindow`. Framework popups were abandoned
@@ -73,18 +73,11 @@ rather than something each widget has to respect.
   the per-monitor surfaces and the other outputs' twins apart by namespace.
 - Panel positioning is top-bar only. Left, right and bottom bar positions are
   not implemented; adding one is a contained change.
-- **The removal is in progress, and the panels themselves are built.** There are
-  two popup-based panels in the tree today, not one:
-  `components/TopIslandModule.qml` declares a `PopupWindow` with
-  `grabFocus: true` and the recursive `makeChildrenUnfocusable` walk, and
-  `shell/topisland/modules/NetworkModule.qml` declares a second `PopupWindow` of
-  its own. They also disagree about the shared popup state — `NetworkModule`
-  called `popupState.set(id)` with one argument while `TopIslandModule` called
-  `popupState.set(id, screen)` with two — which ticket 10 already fixed at the
-  state level (see `components/PopupState.qml`). They go with the widgets ticket
-  18 deletes, and `scripts/verify-docs.sh` fails if this record claims otherwise.
-  `shell/panels/` carries none of it: no `PopupWindow`, no `grabFocus`, and no
-  `makeChildrenUnfocusable` walk, which `scripts/verify-panels.sh` fails on.
+- **The pre-rewrite popups are gone.** Ticket 18 deleted `components/TopIslandModule.qml`
+  and `shell/topisland/` wholesale once every widget lived on the contract.
+  `shell/panels/` and `shell/widgets/` carry none of it: no `PopupWindow`, no
+  `grabFocus`, and no `makeChildrenUnfocusable` walk, which `scripts/verify-panels.sh`
+  fails on.
 
 ## What was built, and what measurement changed
 

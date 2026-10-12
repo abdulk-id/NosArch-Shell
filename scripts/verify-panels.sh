@@ -217,10 +217,6 @@ else:
 # the widgets, because a popup reintroduced on the widget side would be just as
 # broken as one on the surface side.
 #
-# The PRE-REWRITE base (components/TopIslandModule.qml) is deliberately NOT
-# included: it still declares one, because the eleven old widgets that extend it
-# are deleted by ticket 18 and it is their code, not this architecture's. It is
-# reported below so its presence can never be mistaken for the new base's.
 # The list is the FILES THIS ARCHITECTURE OWNS, and it must include the widget
 # contract: a `PopupWindow` or a `grabFocus` reintroduced on the widget side would
 # be just as broken as one on the surface side. An earlier version of this list
@@ -249,53 +245,19 @@ for rel in ["shell/panels/PanelSurface.qml", "shell/panels/PanelCard.qml",
                             "it disabled the in-panel focus this architecture exists "
                             "to provide")
 
-legacy = repo / "components/TopIslandModule.qml"
-if legacy.is_file():
-    ltext = strip_comments(legacy.read_text(errors="replace"))
-    leftovers = []
-    if "PopupWindow {" in ltext:
-        leftovers.append("PopupWindow")
-    if "grabFocus" in ltext:
-        leftovers.append("grabFocus")
-    if "makeChildrenUnfocusable" in ltext:
-        leftovers.append("makeChildrenUnfocusable")
-    print(f"    (tree) pre-rewrite components/TopIslandModule.qml still carries: "
-          f"{', '.join(leftovers) or 'nothing'} — ticket 18 deletes it; the new "
-          f"architecture carries none of it")
-
-# ---- A2b: no framework popup anywhere OUTSIDE the pre-rewrite tree ---------
+# ---- A2b: no framework popup anywhere in the tree --------------------------
 #
 # Over the whole tree, so a PopupWindow added to a widget tomorrow cannot slip
 # past a check that only looked at the panel directory.
-#
-# THE PRE-REWRITE TREE IS EXEMPT, AND THE EXEMPTION IS A DEBT NOT A PERMISSION.
-# `shell/topisland/` and the `components/TopIslandModule.qml` base are the old
-# bar, which ticket 18 deletes; ADR 0002 names both files that still carry a
-# PopupWindow and says they go when the panel architecture lands. Two of them do
-# still carry one, so the honest position is that the migration is IN PROGRESS:
-# the new architecture carries none of it, and the old tree is someone else's
-# deletion. The list is PRINTED on every run for exactly this reason — a green run
-# must not be able to hide which files are still outstanding.
-#
-# The exemption is scoped to a directory prefix, not to "files I already know
-# about", so a popup added to a new file inside the pre-rewrite tree would be
-# reported as unexpected rather than absorbed into the debt.
-PRE_REWRITE_PREFIXES = ("shell/topisland/", "components/TopIslandModule.qml")
-remaining_popups = []
 for f in sorted(repo.rglob("*.qml")):
     if {".git", ".scratch", ".agents", ".zed"} & {p.name for p in f.parents}:
         continue
     rel = str(f.relative_to(repo))
     body = strip_comments(f.read_text(errors="replace"))
-    if "PopupWindow {" not in body:
-        continue
-    if rel.startswith(PRE_REWRITE_PREFIXES):
-        remaining_popups.append(rel)
-        continue
-    problems.append(f"{rel} declares a PopupWindow outside the pre-rewrite tree — "
-                    "panels are overlay surfaces (ADR 0002)")
-print(f"    (tree) PopupWindows still declared, all in the PRE-REWRITE tree that "
-      f"ticket 18 deletes: {', '.join(remaining_popups) or 'none'}")
+    if "PopupWindow {" in body:
+        problems.append(f"{rel} declares a PopupWindow — panels are overlay surfaces "
+                        "(ADR 0002)")
+print("    (tree) framework PopupWindows in the tree: none expected after ticket 18")
 
 # ---- A3: the panel is a FULL-SCREEN layer-shell surface with a card in it ---
 surface = code("shell/panels/PanelSurface.qml")

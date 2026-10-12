@@ -249,7 +249,14 @@ DEFAULTS = {"bar": {"floating": True, "zones": {
         {"type": "memory"},
     ],
     "center": [{"type": "player"}, {"type": "clock"}],
-    "right": [{"type": "tray"}, {"type": "network"}, {"type": "volume"}],
+    "right": [
+        {"type": "tray"},
+        {"type": "network"},
+        {"type": "bluetooth"},
+        {"type": "volume"},
+        {"type": "battery"},
+        {"type": "notification"},
+    ],
 }}}
 
 def zone_types_of(cfg):
@@ -282,7 +289,7 @@ if name == "case1-no-file-defaults":
         say(False, "the shell never reported live zone instances — the bar contents were not built")
     else:
         counts = dict(re.findall(r"(left|center|right)=(\d+)", r))
-        say(counts == {"left": "4", "center": "2", "right": "3"},
+        say(counts == {"left": "4", "center": "2", "right": "6"},
             f"live widget instances built per zone from the defaults: {r}")
 
 elif name == "case2-config-drives-contents":
@@ -368,7 +375,7 @@ elif name == "case4-malformed-file-defaults":
         "the shell started and ran to its summary — a bad file did not stop it")
     r = probe_line("zones-rendered")
     counts = dict(re.findall(r"(left|center|right)=(\d+)", r or ""))
-    say(counts == {"left": "4", "center": "2", "right": "3"},
+    say(counts == {"left": "4", "center": "2", "right": "6"},
         f"the bar still builds its default widgets: {r}")
 
 elif name == "case5-reorder-remove-add":

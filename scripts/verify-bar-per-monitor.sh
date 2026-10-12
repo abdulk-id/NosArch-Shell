@@ -438,10 +438,12 @@ for f in qml_files():
         problems.append(f"{rel} still branches on a missing screen argument — an omitted "
                         f"screen must be impossible, not silently widened to every monitor")
 
-if "popupStateManager" in strip_comments((repo / "shell/topisland/TopIsland.qml").read_text()):
-    problems.append("shell/topisland/TopIsland.qml still declares one global popupStateManager "
-                    "— one object shared by every monitor's bar is the mechanism the ticket "
-                    "replaces; the state belongs to a surface")
+for f in qml_files():
+    text = strip_comments(f.read_text(encoding="utf-8", errors="replace"))
+    if "popupStateManager" in text:
+        problems.append(f"{f.relative_to(repo)} still declares popupStateManager — "
+                        f"one object shared by every monitor's bar is the mechanism the "
+                        f"ticket replaces; the state belongs to a surface")
 
 # ---- and the replacement must exist, and be per-surface --------------------
 state = repo / "components/PopupState.qml"
@@ -471,18 +473,18 @@ else:
         problems.append("components/qmldir does not register PopupState — a directory with a "
                         "qmldir hides any type it does not list")
 
-    # Per-surface means per-surface: the state must be instantiated inside the
-    # per-screen delegate, not once beside the Variants.
-    top = repo / "shell/topisland/TopIsland.qml"
-    if top.is_file():
-        ttext = strip_comments(top.read_text())
-        m = re.search(r"Variants\s*\{", ttext)
+    # Per-surface means per-surface: panel state must be owned inside each bar
+    # window's delegate, not once beside the Variants.
+    bar = repo / "shell/bar/Bar.qml"
+    if bar.is_file():
+        btext = strip_comments(bar.read_text())
+        m = re.search(r"Variants\s*\{", btext)
         if not m:
-            problems.append("shell/topisland/TopIsland.qml has no Variants to scope the state to")
+            problems.append("shell/bar/Bar.qml has no Variants to scope per-screen state to")
         else:
-            delegate = ttext[m.start():]
-            if not re.search(r"PopupState\s*\{", delegate):
-                problems.append("no PopupState is created inside the per-screen delegate — "
+            delegate = btext[m.start():]
+            if not re.search(r"PanelCoordinator\s*\{", delegate):
+                problems.append("no PanelCoordinator is created inside the per-screen delegate — "
                                 "state held once outside the Variants is shared by every "
                                 "monitor, which is the bug being replaced")
 

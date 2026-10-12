@@ -84,14 +84,10 @@ ShellRoot {
     // floating by default and switchable to a full-width background from the
     // user's configuration file.
     //
-    // This REPLACES the pre-rewrite TopIsland, which was the hardcoded bar with
-    // the accidental-symmetry centre. Two bars cannot both be the bar: keeping
-    // the old one composed here would draw a second strip over the top of the
-    // screen, which is worse than either of them alone. Its files are still on
-    // disk — eleven of the twelve widgets are still theirs, and ticket 18 is
-    // what deletes them — so they remain in the smoke plan until then. Nothing
-    // here imports shell/topisland any more, so the old widgets are not even
-    // loaded by the real shell.
+    // This replaced the pre-rewrite TopIsland bar (ticket 18 deleted that tree).
+    // Two bars cannot both be the bar: keeping the old one composed here would
+    // draw a second strip over the top of the screen, which is worse than either
+    // of them alone.
     Bar {}
 
     ProgressOSDPanel {}

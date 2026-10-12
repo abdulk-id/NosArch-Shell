@@ -53,10 +53,9 @@
 #
 # HONEST LIMITS
 #
-#   * Only ONE widget is on the widget contract today (the clock; the other
-#     eleven are their own tickets), so "the wings changed width" means "the
-#     wing changed by whole clock widgets". That is a real width change of real
-#     pixels, and the assertion does not care how it was produced.
+#   * "The wings changed width" is driven by whole clock widgets in the
+#     configuration under test. That is a real width change of real pixels, and
+#     the assertion does not care how it was produced.
 #   * smoke.qml draws NO surfaces, so the window-owning type (Bar.qml) is loaded
 #     and type-checked there but not instantiated; case (C) is what proves it
 #     maps. Cases (A) and (C) together cover it.
@@ -317,8 +316,8 @@ if name == "case1-floating-default":
             f"the bar is filled with the palette's background, not a literal: "
             f"fill={s.get('fill')} palette background={pal}")
     z = zones_reported()
-    want = {"left": 2, "center": 1, "right": 1}
-    say(z == want, f"the default bar holds all THREE zones with launcher, workspaces, clock and tray: {z}"
+    want = {"left": 4, "center": 2, "right": 6}
+    say(z == want, f"the default bar holds all three zones with the twelve cutover widgets: {z}"
         + ("" if z == want else f" (expected {want})"))
 
 elif name == "case2-three-zones-from-config":
@@ -481,9 +480,8 @@ elif name == "case-log-clean":
         + ("" if not bad else " — " + "; ".join(bad[:3])))
 
 elif name == "case-bar-log-clean":
-    # The assembled shell only: the bar's own files and the entrypoint. The rest
-    # of the real shell (wallpaper, the pre-rewrite widgets ticket 18 retires)
-    # is not this ticket's to declare clean.
+    # The bar's own files and the entrypoint for this ticket's real-shell cases.
+    # A whole-shell log check lives in verify-real-shell-startup.sh (ticket 18).
     bad = repo_log_clean(only=("shell/bar/", "shell/widgets/"))
     say(not bad,
         "no WARN/ERROR names the new bar's files or shell.qml: the real bar maps without "
