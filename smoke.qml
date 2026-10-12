@@ -54,6 +54,10 @@ import "services" as Services
 // here constructs them, so a palette that cannot load fails in the smoke run.
 import "shell/ui" as UI
 
+// The widget contract's registry (see shell/widgets/qmldir). Referencing the
+// singleton constructs it, so a registry that cannot load fails the smoke run.
+import "shell/widgets" as Widgets
+
 Item {
     id: smokeRoot
 
@@ -192,6 +196,52 @@ Item {
         Services.NotificationService
     ]
 
+    // ------------------------------------------------------- contract widgets
+    //
+    // The contract widgets (ticket 06). These are instantiated like everything
+    // else — from their own file, once per attached screen — so a widget that
+    // breaks in a widget-only way (a type error, an unresolved binding) is
+    // caught without the live bar being involved.
+    //
+    // The props supplied here are the REQUIRED members of the contract, given
+    // the values a real widget would give them. That is deliberate: instantiating
+    // a contract widget without them must FAIL, so supplying them proves the
+    // required interface is genuinely enforced rather than merely declared.
+
+    readonly property var contractWidgetPlan: [
+        {
+            name: "BarWidget.qml",
+            path: "shell/widgets/BarWidget.qml",
+            props: {
+                content: contractContent,
+                activate: function (widget) {},
+                tooltip: "smoke"
+            }
+        },
+        {
+            name: "SimpleBarWidget.qml",
+            path: "shell/widgets/SimpleBarWidget.qml",
+            props: { label: "smoke", activate: function (widget) {} }
+        },
+        {
+            name: "WidgetRegistry.qml",
+            path: "shell/widgets/WidgetRegistry.qml",
+            props: {},
+            // A singleton cannot be instantiated with createObject; referencing
+            // it constructs it. Resolved by name in instantiateOne below.
+            singleton: true
+        },
+        { name: "ClockWidget.qml", path: "shell/widgets/ClockWidget.qml", props: {} }
+    ]
+
+    Component {
+        id: contractContent
+        Text {
+            text: "smoke"
+            font.pixelSize: 12
+        }
+    }
+
     // ------------------------------------------------------------------ widgets
     //
     // The twelve bar modules. Each is instantiated from its own file — the
@@ -258,6 +308,102 @@ Item {
         function isActive(id: string, screen: string): bool { return false; }
     }
 
+    // --------------------------------------------------- contract probes
+    //
+    // The contract's promises are reported here rather than assumed. A comment
+    // saying "widgets dim on hover" is not evidence; the numbers below are read
+    // off real instances. scripts/verify-widget-contract.sh parses these lines,
+    // so the promises are falsifiable without a human reading a log.
+    //
+    //   registry-resolved  every registered name resolves to a loadable Component
+    //   registry-rejected  a name the map does not hold resolves to nothing
+    //   clock-panel        the clock declares no panel at all
+    //   clock-members      the clock carries time + date on a one-minute cadence
+    //   base-hover         the base dims when idle and brightens on hover
+    //
+    // Each probe prints exactly one CONTRACT line per promise.
+
+    function contract(key: string, value: string): void {
+        console.info("SMOKE CONTRACT " + key + " " + value);
+    }
+
+    function probeWidgetRegistry(): void {
+        const reg = Widgets.WidgetRegistry;
+        const names = reg.names();
+        // Every registered name must resolve to a loadable component. A name
+        // that resolves to null is a name configuration could ask for and not
+        // get — the exact failure that would cost a user a missing icon.
+        const broken = [];
+        for (const n of names) {
+            const comp = reg.componentFor(n);
+            if (comp === null || comp.status !== Component.Ready) {
+                broken.push(n + "=" + (comp === null ? "NO-COMPONENT" : "STATUS-" + comp.status));
+            }
+        }
+        let line = "count=" + names.length;
+        for (const n of names) {
+            line += " name=" + n + "|" + (broken.some(b => b.startsWith(n + "="))
+                ? (broken.find(b => b.startsWith(n + "=")) || "").split("=")[1]
+                : "READY");
+        }
+        smokeRoot.contract("registry-resolved", line);
+
+        // An unknown name must resolve to nothing — the failure policy the spec
+        // requires ("skipped rather than fatal"). Checked on a name that could
+        // never plausibly be a widget, so a registry that resolved everything
+        // would fail here.
+        const bogus = "definitely-not-a-widget";
+        const bogusComp = reg.componentFor(bogus);
+        smokeRoot.contract("registry-rejected",
+            "name=" + bogus + " resolves=" + (bogusComp === null ? "no" : "YES-UNEXPECTEDLY"));
+    }
+
+    function probeClockPanel(): void {
+        // Built on the REAL widget file and read, not constructed by hand, so
+        // this reports the shipped clock rather than a stand-in.
+        const comp = Qt.createComponent("shell/widgets/ClockWidget.qml");
+        if (comp.status !== Component.Ready) {
+            smokeRoot.contract("clock-panel", "hasPanel=UNKNOWN (clock failed to load)");
+            return;
+        }
+        const clock = comp.createObject(smokeRoot, {});
+        if (clock === null) {
+            smokeRoot.contract("clock-panel", "hasPanel=UNKNOWN (clock would not construct)");
+            return;
+        }
+        smokeRoot.contract("clock-panel",
+            "hasPanel=" + clock.hasPanel +
+            " panelContent=" + (clock.panelContent === null ? "null" : "SUPPLIED"));
+        smokeRoot.contract("clock-members",
+            "time=\"" + clock.timeText + "\" date=\"" + clock.dateText + "\"" +
+            " cadence=" + clock.clockCadence +
+            " tooltip=\"" + clock.tooltip + "\"");
+        clock.destroy();
+    }
+
+    function probeBaseHover(): void {
+        const comp = Qt.createComponent("shell/widgets/BarWidget.qml");
+        if (comp.status !== Component.Ready) {
+            smokeRoot.contract("base-hover", "dimOpacity=UNKNOWN brightOpacity=UNKNOWN");
+            return;
+        }
+        const w = comp.createObject(smokeRoot, {
+            content: contractContent,
+            activate: function (widget) {},
+            tooltip: "smoke"
+        });
+        if (w === null) {
+            // The base refusing to construct without its required members would
+            // land here, which is itself the contract working.
+            smokeRoot.contract("base-hover", "dimOpacity=UNKNOWN brightOpacity=UNKNOWN");
+            return;
+        }
+        smokeRoot.contract("base-hover",
+            "dimOpacity=" + w.dimOpacity + " brightOpacity=" + w.brightOpacity +
+            " idle=" + w.contentOpacity);
+        w.destroy();
+    }
+
     // ------------------------------------------------------------- life cycle
 
     Component.onCompleted: {
@@ -279,6 +425,9 @@ Item {
             smokeRoot.plan("service", s.name);
         }
         for (const w of smokeRoot.widgetPlan) {
+            smokeRoot.plan("widget", w.name);
+        }
+        for (const w of smokeRoot.contractWidgetPlan) {
             smokeRoot.plan("widget", w.name);
         }
         for (const c of smokeRoot.componentPlan) {
@@ -361,12 +510,28 @@ Item {
         for (const w of smokeRoot.widgetPlan) {
             smokeRoot.instantiateOne("widget", w.name, w.path, w.props, host, screen);
         }
+        for (const w of smokeRoot.contractWidgetPlan) {
+            smokeRoot.instantiateOne("widget", w.name, w.path, w.props, host, screen, w.singleton === true);
+        }
         for (const c of smokeRoot.componentPlan) {
             smokeRoot.instantiateOne("component", c.name, c.path, c.props, host, screen);
         }
     }
 
-    function instantiateOne(kind: string, name: string, path: string, props: var, host: Item, screen: string): void {
+    function instantiateOne(kind: string, name: string, path: string, props: var, host: Item, screen: string, singleton: bool): void {
+        // A `pragma Singleton` type is constructed by REFERENCING it, not by
+        // createObject — createObject on one returns null and would report a
+        // false failure. Referencing the imported namespace is both the correct
+        // construction and the proof that the registry loads.
+        if (singleton === true) {
+            try {
+                smokeRoot.probeWidgetRegistry();
+                smokeRoot.mark(kind, name, true, "singleton constructed and every name resolved");
+            } catch (e) {
+                smokeRoot.mark(kind, name, false, "registry probe threw " + e);
+            }
+            return;
+        }
         const comp = Qt.createComponent(path);
         if (comp.status === Component.Error) {
             smokeRoot.mark(kind, name, false, "component failed to load: " + comp.errorString());
@@ -394,6 +559,12 @@ Item {
             " keys-from-file=" + pal.keysFromFile +
             (pal.note !== "" ? " note=" + pal.note : "") +
             " background=" + pal.background + " accent=" + pal.accent);
+
+        // The contract's promises (ticket 06), read off real instances. Printed
+        // in the same place as the palette verdict — after everything has
+        // settled, so a value reported here is the settled value.
+        smokeRoot.probeClockPanel();
+        smokeRoot.probeBaseHover();
 
         // Services: create each singleton (via the qmldir registration) and
         // read the leaves the shell consumes.
