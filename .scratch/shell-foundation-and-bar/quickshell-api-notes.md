@@ -566,9 +566,11 @@ Confidence: **all 11 topics verified against the installed 0.3.2 binary** by com
 
 ---
 
-## Addendum — found while implementing tickets 05 and 06 (CONFIRMED-0.3.2)
+## Addendum — found while implementing tickets 05, 06 and 09 (CONFIRMED-0.3.2)
 
-These three cost real time and are not in the numbered sections above.
+The first six cost real time and are not in the numbered sections above; 7–9
+were added while implementing ticket 09 (per-widget options) and all three cost
+time in the same way — they compile or load quietly and behave wrongly.
 
 1. **`Qt.TimeFormat` does not exist.** Reading it fails at *run* time with
    `Cannot read property 'ShortFormat' of undefined` — the same shape of
@@ -610,6 +612,38 @@ These three cost real time and are not in the numbered sections above.
    `ShellRoot` fails with `Composite Singleton Type BarConfig is not
    creatable.` Referencing it (`readonly property var x: BarConfig`) is the
    only way to construct it — the same trap as #3, in a different disguise.
+
+7. **A derived type can neither re-declare nor assign a property its base
+   already has.** Both spellings are needed to get this right, and both fail
+   differently:
+
+   - re-declaring — `readonly property var optionDefaults: ({…})` in the
+     derived type against a plain `property var` on the base — **compiles
+     clean and silently does nothing**. The base keeps its own value, so a
+     widget appears to declare its options and does not get them. There is no
+     warning of any kind.
+   - assigning — `optionDefaults: ({…})` — against a base declared `readonly`
+     fails to **compile**: `Invalid property assignment: "optionDefaults" is a
+     read-only property`.
+
+   So a base-class property that derived types must supply has to be plain
+   (`property var`, not `readonly property var`), and derived types override by
+   **assignment**. Read-only *reporting* then lives on a different name
+   (`hasOptions` beside `optionDefaults`). Verified on 0.3.2.
+
+8. **`createObject` ignores an unknown property; assigning one to a live object
+   throws.** `comp.createObject(parent, { notAProperty: 1 })` returns the
+   object with no error, but `obj.notAProperty = 1` on the constructed object
+   throws `Cannot assign to non-existent property "notAProperty"`. This is the
+   reason the per-widget option mechanism is one `var` bag rather than one
+   property per option: anything delivered at construction can be an unknown
+   key without breaking, anything assigned afterwards cannot.
+
+9. **A QML property name cannot begin with an upper case letter**, so the
+   obvious spelling for a constant — `readonly property var LONG_FORMAT:
+   Locale.LongFormat` — is a **load** error (`Property names cannot begin with
+   an upper case letter`), not a lint, and it takes the whole widget down.
+   Use a `function`, a lowerCamelCase property, or inline the value.
 
 Also worth carrying forward: `verify-launch-reload.sh` copies `shell/`,
 `services/` and `components/` into its scratch config, so a new directory

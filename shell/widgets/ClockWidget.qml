@@ -59,10 +59,54 @@ BarWidget {
     // habit suggest it), and using it fails at RUN time with "Cannot read
     // property 'ShortFormat' of undefined" — which is exactly the class of
     // failure the smoke log check exists to catch. Locale lives in QtQml.
-    readonly property var shortTimeFormat: Qt.locale().timeFormat(Locale.ShortFormat)
+    //
+    // ---- the time format option (ticket 09) --------------------------------
+    //
+    // The clock's own option, and the demonstration that a widget can be tuned
+    // without a code change:
+    //
+    //     { "type": "clock", "timeFormat": "long" }
+    //
+    // Three widget-level properties to declare and read one option, which is
+    // the whole of the mechanism — the delivery, the default and the reporting
+    // all live on the contract (BarWidget), so nothing below is clock-specific.
+    //
+    // DECLARED BY ASSIGNMENT, NOT BY RE-DECLARATION. `optionDefaults` is
+    // inherited from BarWidget, and a derived QML type cannot re-declare or
+    // override a property its base already has; it must be ASSIGNED. Writing
+    // `readonly property var optionDefaults: …` here instead silently does
+    // nothing — see the note in BarWidget.
+    optionDefaults: ({ "timeFormat": "short" })
+
+    // What the widget settled on. Read through optionValue, so an entry that
+    // says nothing leaves this at the declared default — which is what makes
+    // `{ "type": "clock" }` (the ticket-07 format, no options at all) render
+    // exactly as it did before this option existed.
+    readonly property string timeFormat: clock.optionValue("timeFormat")
+
+    // The locale pattern this option selected, reported so the shell can be
+    // told which of the two it is really using rather than being asked to
+    // trust the option's name.
+    // `Locale.ShortFormat` / `Locale.LongFormat` are read inline rather than
+    // held in named constants: a QML property name cannot begin with an upper
+    // case letter, so the obvious spelling for a constant here (`LONG_FORMAT`)
+    // does not compile at all — it is a load error, not a lint. See
+    // quickshell-api-notes.md.
+    readonly property var timeFormatPattern: clock.timeFormat === "long"
+        ? Qt.locale().timeFormat(Locale.LongFormat)
+        : Qt.locale().timeFormat(Locale.ShortFormat)
+
+    // Any value other than the two named ones falls back to the default rather
+    // than being passed to Qt.formatTime(). That is deliberate and it is the
+    // ONLY validation this widget does: an unusable VALUE is a different
+    // failure from an unknown KEY, and it costs the user their chosen format,
+    // never a thrown exception out of a formatting call. `unrecognisedOptions`
+    // (the contract) reports unknown keys; a known key with a nonsense value
+    // is this widget's own business, and the shell has no vocabulary for it.
+    // A third format is a later ticket, not a guess made here.
     readonly property var shortDateFormat: Qt.locale().dateFormat(Locale.ShortFormat)
 
-    readonly property string timeText: Qt.formatTime(systemClock.date, clock.shortTimeFormat)
+    readonly property string timeText: Qt.formatTime(systemClock.date, clock.timeFormatPattern)
     // Numeric short date (e.g. 12/10/2026) — the tooltip below carries the long
     // human form, so the two together say the same thing at two resolutions.
     readonly property string dateText: Qt.formatDate(systemClock.date, clock.shortDateFormat)

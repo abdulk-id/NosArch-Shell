@@ -454,6 +454,46 @@ Singleton {
         return null
     }
 
+    // A configuration option that the widget it was written for does not
+    // declare (ticket 09). Reported through the same CONFIG stream as every
+    // other configuration problem, because that is the point of there being one
+    // stream: a user greps one pattern and finds everything wrong with their
+    // file.
+    //
+    // WHY THE WIDGET IS STILL BUILT — the decision, and what it costs
+    //
+    //   Not silent, like `path`/`file` is not silent: a user who wrote an
+    //   option their shell does not know must be TOLD, or they believe it
+    //   worked. That is the whole of the precedent, and it is honoured here.
+    //
+    //   What is NOT honoured is the rest of it. `path`/`file` are refused
+    //   outright rather than stripped because HONOURING them would let a
+    //   user-owned text file choose which code runs — refusing the entry is
+    //   the only safe answer there. No such danger exists in an option key: the
+    //   worst an unrecognised one can do is have no effect, which is the same
+    //   thing that happens if it is ignored. So refusing the ENTRY here would
+    //   buy no safety at all, and would cost the user a working widget.
+    //
+    //   It would also break the file for every machine, which is the decisive
+    //   argument. This file is deployed by the installer to every target
+    //   machine, and a target may be running a shell OLDER than the
+    //   configuration written for it. Under "refuse the entry", naming an
+    //   option a future release adds would delete the widget entirely on every
+    //   older machine — the exact format break the object-shaped entries
+    //   (ticket 07) exist to prevent, arriving through a different door.
+    //
+    //   So: the KEY is refused and named; the WIDGET is kept. A bad option
+    //   costs one key, never one widget, and never the bar.
+    function reportUnrecognisedOption(where: string, index: int, type: string,
+            key: string, declared: var): void {
+        let line = "nosarch-shell ▸ CONFIG refused option " + where + "[" + index + "]"
+            + " type=" + type + " key=" + key
+            + " declared=" + (Array.isArray(declared) && declared.length > 0
+                ? declared.join(",") : "none")
+        console.warn(line + " — not applied; the widget is shown with its "
+            + "declared defaults")
+    }
+
     function _setEntries(entries: var): void {
         barConfig._entries = entries
         barConfig._report()

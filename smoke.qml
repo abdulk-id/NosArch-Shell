@@ -645,6 +645,73 @@ Item {
             " zone-rendered=" + z.builtCount);
     }
 
+    // ------------------------------------------------- per-widget options probe
+    //
+    // Ticket 09's seam: read off REAL widgets built by the REAL zone from a
+    // REAL configuration file, what each widget declared, what it was actually
+    // given, what it settled on, and what it rendered.
+    //
+    // It builds its own zone rather than reading one that already exists,
+    // because the claim under test is that options travel the whole path —
+    // file → BarConfig → BarZone → widget — and that path is only exercised
+    // end to end by a zone actually constructing an entry from the reader's
+    // verdict. Reading an existing zone's widgets would work too, but would
+    // prove less: it could not tell a delivered option from one the widget
+    // defaulted to on its own.
+    //
+    // Deliberately built AFTER everything has settled (see finalizeStage), so
+    // the reader's verdict is final and the widget's bindings are evaluated.
+    // `pattern` and `text` are printed quoted because both contain spaces.
+    function probeWidgetOptions(): void {
+        const zoneComp = Qt.createComponent("shell/bar/BarZone.qml")
+        if (zoneComp.status !== Component.Ready) {
+            console.info("nosarch-shell ▸ CONFIG probe options UNKNOWN (zone failed to load)");
+            return
+        }
+        const zones = ["left", "center", "right"]
+        let any = false
+        for (const name of zones) {
+            const z = zoneComp.createObject(smokeRoot, { zoneName: name })
+            if (z === null) {
+                continue
+            }
+            for (const entry of z.entries) {
+                const widget = z.construct(entry, smokeRoot, Bar.BarConfig.componentFor(entry.type))
+                if (widget === null) {
+                    console.info("nosarch-shell ▸ CONFIG probe option zone=" + name +
+                        " index=" + entry.index + " type=" + entry.type + " built=no")
+                    continue
+                }
+                any = true
+                const declared = widget.optionDefaults === undefined
+                    ? [] : Object.keys(widget.optionDefaults)
+                const unrec = widget.unrecognisedOptions === undefined
+                    ? [] : widget.unrecognisedOptions
+                console.info("nosarch-shell ▸ CONFIG probe option zone=" + name +
+                    " index=" + entry.index +
+                    " type=" + entry.type +
+                    " built=yes" +
+                    " hasOptions=" + widget.hasOptions +
+                    " declared=" + declared.join(",") +
+                    // Which of its own declared options the entry actually set.
+                    // Distinguishing "delivered" from "defaulted" is the whole
+                    // point: a widget that ignored its options would still
+                    // report a correct default here.
+                    " given=" + Object.keys(entry.settings).join(",") +
+                    " value=" + (widget.timeFormat !== undefined ? widget.timeFormat : "-") +
+                    " unrecognised=" + unrec.join(",") +
+                    " pattern=\"" + (widget.timeFormatPattern !== undefined
+                        ? widget.timeFormatPattern : "-") + "\"" +
+                    " text=\"" + (widget.timeText !== undefined ? widget.timeText : "-") + "\"")
+                widget.destroy()
+            }
+            z.destroy()
+        }
+        if (!any) {
+            console.info("nosarch-shell ▸ CONFIG probe options UNKNOWN (no widget was built)");
+        }
+    }
+
     // ------------------------------------------------------------- life cycle
 
     Component.onCompleted: {
@@ -836,6 +903,11 @@ Item {
         smokeRoot.probeZones();
         smokeRoot.probeConstructFailure();
         smokeRoot.probeConfigReader();
+
+        // Per-widget options (ticket 09): what each widget declared, what it
+        // was given, and what it rendered — read off widgets built by a real
+        // zone from the reader's own verdict.
+        smokeRoot.probeWidgetOptions();
 
         // The bar's layout (ticket 08): the zones' real geometry, measured.
         smokeRoot.probeBarSurface();
