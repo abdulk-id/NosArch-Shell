@@ -877,21 +877,24 @@ fi
 
 closed=0
 for _ in $(seq 1 20); do
-    if grep -q "PANEL state .*owner=no" "$LOG_D" 2>/dev/null; then
+    d_try="$(panel_line "$LOG_D" state)"
+    if [[ "$d_try" == *"owner=no"* ]] && [[ "$d_try" == *"panel=none"* ]]; then
         closed=1
         break
     fi
     kill -0 "$shell_pid" 2>/dev/null || break
     sleep 0.1
 done
-if [[ $closed -eq 1 ]]; then
+if [[ $escape_sent -eq 1 && $closed -eq 1 ]]; then
     pass "escape-closes-panel" "Escape closed the panel and the surface released ownership of the keyboard and the clicks"
-else
+elif [[ $escape_sent -eq 1 ]]; then
     fail "escape-closes-panel" "the panel was still open after a real Escape keypress"
+else
+    fail "escape-closes-panel" "Escape was not injected — the close promise is untested"
 fi
 
 d_final="$(panel_line "$LOG_D" state)"
-if [[ "$d_final" == *"owner=no"* ]]; then
+if [[ "$d_final" == *"owner=no"* ]] && [[ "$d_final" == *"panel=none"* ]]; then
     pass "ownership-released-at-close" "after the logical close the surface reports owner=no: ${d_final:0:150}"
 else
     fail "ownership-released-at-close" "the surface still owns input after closing: $d_final"

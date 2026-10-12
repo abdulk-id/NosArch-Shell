@@ -173,6 +173,13 @@ BarWidget {
                 // opens, so arrow keys change the volume with no mouse at all.
                 focus: true
 
+                Keys.onEscapePressed: (event) => {
+                    if (volume.panelCoordinator !== null) {
+                        volume.panelCoordinator.close()
+                        event.accepted = true
+                    }
+                }
+
                 Layout.fillWidth: true
                 Layout.preferredHeight: 24
 
